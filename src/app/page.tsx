@@ -154,11 +154,7 @@ const WIKI_DATA = [
   { n:'V',   id:'security', title:'Security',       sub:'Access, secrets, incident response.',                             pages:'9 pages'  },
   { n:'VI',  id:'trades',   title:'Trade vocab',    sub:'Sparky, chippy, plumber — what we know about each trade.',        pages:'14 pages' },
 ];
-const CHANGELOG_DATA = [
-  { date:'17 Apr', v:'v0.9.0', title:'iOS app <em>beta</em> opens', tags:['ship'], body:'TestFlight open to 200 waitlist trades. Voice capture redesigned. Quote PDF v2.' },
-  { date:'2 Apr',  v:'v0.8.4', title:'Auto-chase <em>goes live</em>', tags:['ship','fix'], body:'Automated follow-ups at day 2, day 5. Fixed SPF record. Win rate up 8pts.' },
-  { date:'18 Mar', v:'v0.8.0', title:'Materials list <em>rewrite</em>', tags:['ship','brand'], body:'New price-lookup covers 4,200 SKUs. Brand refresh — Sentient typeface, navy palette.' },
-];
+const CHANGELOG_DATA: { id: string; date: string; v: string; title: string; tags: string[]; body: string }[] = [];
 const ACTIVITY: { when: string; who: string; what: string; ref: string; extra: string }[] = [];
 const ISSUES_SEED = [
   { id:'REL-142', title:'Voice capture drops last second on iOS 18', status:'prog',   prio:'urgent', who:'J', project:'iOS app · v0.9' },
@@ -508,23 +504,97 @@ function WikiView() {
 }
 
 function ChangelogView() {
+  const [entries, setEntries] = useState(CHANGELOG_DATA);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [form, setForm] = useState({ date: '', v: '', title: '', body: '', tags: [] as string[] });
+
+  const TAG_OPTIONS = ['ship', 'fix', 'brand', 'ops'];
+  const tagColor = (t: string) => ({ ship: ['var(--bottle-soft)','var(--bottle-deep)'], fix: ['var(--blue-soft)','var(--blue-hover)'], brand: ['var(--butter-soft)','var(--butter-deep)'], ops: ['var(--slate)','var(--fg2)'] }[t] ?? ['var(--slate)','var(--fg2)']);
+
+  const resetForm = () => setForm({ date: new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short'}), v: '', title: '', body: '', tags: [] });
+
+  const addEntry = () => {
+    setEntries(es => [{ id: String(Date.now()), ...form }, ...es]);
+    setAdding(false);
+    resetForm();
+  };
+
+  const saveEdit = (id: string) => {
+    setEntries(es => es.map(e => e.id === id ? { ...e, ...form } : e));
+    setEditing(null);
+  };
+
+  const startEdit = (e: typeof entries[0]) => {
+    setForm({ date: e.date, v: e.v, title: e.title, body: e.body, tags: [...e.tags] });
+    setEditing(e.id);
+    setAdding(false);
+  };
+
+  const toggleTag = (t: string) => setForm(f => ({ ...f, tags: f.tags.includes(t) ? f.tags.filter(x => x !== t) : [...f.tags, t] }));
+
+  const EntryForm = ({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) => (
+    <div className="uat-form" style={{ marginBottom: 20 }}>
+      <div className="form-grid">
+        <div className="form-field"><label>Version</label><input value={form.v} onChange={e => setForm(f => ({...f, v: e.target.value}))} placeholder="v1.0.0" /></div>
+        <div className="form-field"><label>Date</label><input value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} placeholder="18 Apr" /></div>
+        <div className="form-field full"><label>Title</label><input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="What shipped?" /></div>
+        <div className="form-field full"><label>Description</label><textarea value={form.body} onChange={e => setForm(f => ({...f, body: e.target.value}))} placeholder="What changed and why it matters." /></div>
+        <div className="form-field full">
+          <label>Tags</label>
+          <div style={{ display:'flex', gap:8, marginTop:4 }}>
+            {TAG_OPTIONS.map(t => (
+              <button key={t} type="button" onClick={() => toggleTag(t)} style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', padding:'3px 8px', borderRadius:3, textTransform:'uppercase', fontWeight:500, cursor:'pointer', border: form.tags.includes(t) ? 'none' : '1px solid var(--border)', background: form.tags.includes(t) ? tagColor(t)[0] : 'var(--bg-card)', color: form.tags.includes(t) ? tagColor(t)[1] : 'var(--fg3)' }}>{t}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="form-actions">
+        <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-primary" onClick={onSave} disabled={!form.v || !form.title}>Save entry</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>#III</span><span className="sep">·</span><b>Knowledge</b><span className="sep">·</span><b>Changelog</b></div>
-      <div className="section-head"><h2>Changelog</h2><span className="meta">What shipped</span></div>
-      {CHANGELOG_DATA.map((c,i) => (
-        <div key={i} style={{ display:'grid', gridTemplateColumns:'120px 1fr', gap:32, padding:'24px 0', borderBottom:'1px solid var(--border)' }}>
-          <div>
-            <span className="mono">{c.date}</span>
-            <div style={{ fontFamily:'var(--font-body)', fontSize:20, fontWeight:700, color:'var(--fg1)', marginTop:2 }}>{c.v}</div>
-          </div>
-          <div>
-            <h3 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:400, fontSize:22, margin:'0 0 8px', letterSpacing:'-0.015em' }} dangerouslySetInnerHTML={{ __html: c.title }} />
-            <p style={{ fontSize:13, color:'var(--fg2)', margin:'0 0 10px', lineHeight:1.5 }}>{c.body}</p>
-            <div style={{ display:'flex', gap:6 }}>
-              {c.tags.map(t => <span key={t} style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', padding:'2px 7px', borderRadius:3, textTransform:'uppercase', fontWeight:500, background: t==='ship'?'var(--bottle-soft)':t==='fix'?'var(--blue-soft)':'var(--butter-soft)', color: t==='ship'?'var(--bottle-deep)':t==='fix'?'var(--blue-hover)':'var(--butter-deep)' }}>{t}</span>)}
-            </div>
-          </div>
+      <div className="section-head">
+        <h2>Changelog</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setAdding(a => !a); setEditing(null); }}>
+          <Ic n="plus" />{adding ? 'Cancel' : 'Add entry'}
+        </button>
+      </div>
+
+      {adding && <EntryForm onSave={addEntry} onCancel={() => setAdding(false)} />}
+
+      {entries.length === 0 && !adding && (
+        <div style={{ padding:'40px 0', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>
+          No changelog entries yet. Add your first release above.
+        </div>
+      )}
+
+      {entries.map(c => (
+        <div key={c.id}>
+          {editing === c.id
+            ? <EntryForm onSave={() => saveEdit(c.id)} onCancel={() => setEditing(null)} />
+            : (
+              <div style={{ display:'grid', gridTemplateColumns:'120px 1fr auto', gap:32, padding:'24px 0', borderBottom:'1px solid var(--border)', alignItems:'start' }}>
+                <div>
+                  <span className="mono">{c.date}</span>
+                  <div style={{ fontFamily:'var(--font-body)', fontSize:20, fontWeight:700, color:'var(--fg1)', marginTop:2 }}>{c.v}</div>
+                </div>
+                <div>
+                  <h3 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:400, fontSize:22, margin:'0 0 8px', letterSpacing:'-0.015em' }}>{c.title}</h3>
+                  <p style={{ fontSize:13, color:'var(--fg2)', margin:'0 0 10px', lineHeight:1.5 }}>{c.body}</p>
+                  <div style={{ display:'flex', gap:6 }}>
+                    {c.tags.map(t => <span key={t} style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', padding:'2px 7px', borderRadius:3, textTransform:'uppercase', fontWeight:500, background:tagColor(t)[0], color:tagColor(t)[1] }}>{t}</span>)}
+                  </div>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}><Ic n="edit" size={12} />Edit</button>
+              </div>
+            )
+          }
         </div>
       ))}
     </div>
@@ -740,20 +810,34 @@ function InflightView() {
 
       {tab === 'list' && <>
         {/* Cycle filter */}
-        {cycles.length > 0 && (
-          <div style={{ marginBottom:12 }}>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:8 }}>Cycle</div>
-            <div className="filter-strip" style={{ marginBottom:0 }}>
-              <button className={`filter-chip${cycleFilter==='all'?' on':''}`} onClick={() => setCycleFilter('all')}>All issues</button>
-              {cycles.map(c => (
-                <button key={c.id} className={`filter-chip${cycleFilter===c.id?' on':''}`} onClick={() => setCycleFilter(c.id)}>
-                  {c.name ?? `Cycle ${c.number}`}
-                  {!c.completedAt && <span style={{ marginLeft:5, width:6, height:6, borderRadius:'50%', background:'var(--bottle)', display:'inline-block', verticalAlign:'middle' }} />}
-                </button>
-              ))}
+        {cycles.length > 0 && (() => {
+          const sorted = [...cycles].sort((a, b) => b.number - a.number);
+          const active = sorted.filter(c => !c.completedAt);
+          const recent = sorted.filter(c => c.completedAt).slice(0, 2);
+          const shown = [...active, ...recent];
+          const older = sorted.filter(c => !shown.find(s => s.id === c.id));
+          return (
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:8 }}>Cycle</div>
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                <button className={`filter-chip${cycleFilter==='all'?' on':''}`} onClick={() => setCycleFilter('all')}>All issues</button>
+                {shown.map(c => (
+                  <button key={c.id} className={`filter-chip${cycleFilter===c.id?' on':''}`} onClick={() => setCycleFilter(c.id)}>
+                    {c.name ?? `Cycle ${c.number}`}
+                    {!c.completedAt && <span style={{ marginLeft:5, width:6, height:6, borderRadius:'50%', background:'var(--bottle)', display:'inline-block', verticalAlign:'middle' }} />}
+                  </button>
+                ))}
+                {older.length > 0 && (
+                  <select value={cycleFilter} onChange={e => setCycleFilter(e.target.value)}
+                    style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', padding:'4px 10px', borderRadius:'var(--radius-pill)', border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--fg3)', cursor:'pointer' }}>
+                    <option value="">Older cycles…</option>
+                    {older.map(c => <option key={c.id} value={c.id}>{c.name ?? `Cycle ${c.number}`}</option>)}
+                  </select>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Status filter */}
         <div className="filter-strip">
@@ -813,17 +897,47 @@ function InflightView() {
 }
 
 function ActivityView() {
+  const [entries, setEntries] = useState(ACTIVITY);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ who: '', what: '', ref: '', extra: '' });
+
+  const add = () => {
+    setEntries(es => [{ when: 'Just now', ...form }, ...es]);
+    setForm({ who: '', what: '', ref: '', extra: '' });
+    setAdding(false);
+  };
+
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>Dev</span><span className="sep">·</span><b>Activity</b></div>
-      <div className="section-head"><h2>Activity</h2><span className="meta">Last 48 hours</span></div>
-      <div className="data-card">
-        {ACTIVITY.map((a,i) => (
-          <div key={i} className="feed-row">
-            <span className="feed-when">{a.when}</span>
-            <span><span className="feed-who">{a.who}</span> <span style={{ color:'var(--fg2)' }}>{a.what} </span><span className="feed-ref">{a.ref}</span><span style={{ color:'var(--fg2)' }}>{a.extra}</span></span>
+      <div className="section-head">
+        <h2>Activity</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding ? 'Cancel' : 'Add entry'}</button>
+      </div>
+      {adding && (
+        <div className="uat-form" style={{ marginBottom: 16 }}>
+          <div className="form-grid">
+            <div className="form-field"><label>Who</label><input value={form.who} onChange={e => setForm(f => ({...f, who: e.target.value}))} placeholder="James" /></div>
+            <div className="form-field"><label>Action</label><input value={form.what} onChange={e => setForm(f => ({...f, what: e.target.value}))} placeholder="shipped, fixed, reviewed…" /></div>
+            <div className="form-field"><label>Ref</label><input value={form.ref} onChange={e => setForm(f => ({...f, ref: e.target.value}))} placeholder="REL-142 or v1.0.0" /></div>
+            <div className="form-field"><label>Detail (optional)</label><input value={form.extra} onChange={e => setForm(f => ({...f, extra: e.target.value}))} placeholder=" — short description" /></div>
           </div>
-        ))}
+          <div className="form-actions">
+            <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={add} disabled={!form.who || !form.what}>Add</button>
+          </div>
+        </div>
+      )}
+      <div className="data-card">
+        {entries.length === 0
+          ? <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No activity yet. Add an entry or wait for the cron sync.</div>
+          : entries.map((a, i) => (
+            <div key={i} className="feed-row">
+              <span className="feed-when">{a.when}</span>
+              <span><span className="feed-who">{a.who}</span> <span style={{ color:'var(--fg2)' }}>{a.what} </span><span className="feed-ref">{a.ref}</span><span style={{ color:'var(--fg2)' }}>{a.extra}</span></span>
+            </div>
+          ))
+        }
       </div>
     </div>
   );
