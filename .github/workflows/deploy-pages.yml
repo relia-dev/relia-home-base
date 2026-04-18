@@ -34,22 +34,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy out --project-name=relia-home-base --commit-dirty=true
 
-      - name: Install cron worker dependencies
-        run: npm ci --legacy-peer-deps
-        working-directory: workers/cron
-
-      - name: Deploy cron worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: workers/cron
-          command: deploy
-          secrets: |
-            SUPABASE_URL
-            SUPABASE_SERVICE_ROLE_KEY
-            LINEAR_API_KEY
-        env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      # Cron worker deploy requires Workers Scripts token permission — deploy manually via wrangler CLI
