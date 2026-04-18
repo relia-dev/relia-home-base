@@ -159,14 +159,7 @@ const CHANGELOG_DATA = [
   { date:'2 Apr',  v:'v0.8.4', title:'Auto-chase <em>goes live</em>', tags:['ship','fix'], body:'Automated follow-ups at day 2, day 5. Fixed SPF record. Win rate up 8pts.' },
   { date:'18 Mar', v:'v0.8.0', title:'Materials list <em>rewrite</em>', tags:['ship','brand'], body:'New price-lookup covers 4,200 SKUs. Brand refresh — Sentient typeface, navy palette.' },
 ];
-const ACTIVITY = [
-  { when:'14m ago',   who:'James', what:'shipped',      ref:'REL-134', extra:' — Postman collection for /v1/estimates' },
-  { when:'1h ago',    who:'Mia',   what:'opened PR for', ref:'REL-139', extra:' SPF fix' },
-  { when:'2h ago',    who:'Sam',   what:'closed',        ref:'REL-128', extra:' — CSV export live on admin' },
-  { when:'3h ago',    who:'James', what:'commented on',  ref:'REL-142', extra:'' },
-  { when:'Yesterday', who:'Mia',   what:'deployed',      ref:'v0.8.4',  extra:' to production' },
-  { when:'Yesterday', who:'Sam',   what:'updated',       ref:'REL-131', extra:' — ABN timeout now 8s' },
-];
+const ACTIVITY: { when: string; who: string; what: string; ref: string; extra: string }[] = [];
 const ISSUES_SEED = [
   { id:'REL-142', title:'Voice capture drops last second on iOS 18', status:'prog',   prio:'urgent', who:'J', project:'iOS app · v0.9' },
   { id:'REL-139', title:'Auto-chase email lands in spam — SPF record', status:'review', prio:'high', who:'M', project:'Backend' },
@@ -176,24 +169,8 @@ const ISSUES_SEED = [
   { id:'REL-127', title:'Dark mode — slate backgrounds clash on Samsung',status:'todo', prio:'med',  who:'S', project:'iOS app · v0.9' },
   { id:'REL-120', title:'Push notification not firing on quote accept', status:'block', prio:'urgent',who:'M', project:'Backend' },
 ];
-const REQS_SEED = [
-  { ref:'FR-001',  type:'functional',     category:'Voice Capture', priority:'must_have',   status:'implemented', title:'Voice-to-quote in under 60s',              linear_id:'' },
-  { ref:'FR-002',  type:'functional',     category:'Quoting',       priority:'must_have',   status:'implemented', title:'Auto-generate compliant PDF quote',         linear_id:'' },
-  { ref:'FR-003',  type:'functional',     category:'Follow-up',     priority:'must_have',   status:'approved',    title:'Automated chase emails at day 2 and day 5', linear_id:'' },
-  { ref:'FR-004',  type:'functional',     category:'Onboarding',    priority:'must_have',   status:'implemented', title:'ABN lookup and validation',                 linear_id:'' },
-  { ref:'FR-005',  type:'functional',     category:'Materials',     priority:'should_have', status:'approved',    title:'Price lookup for 4,200+ SKUs',              linear_id:'' },
-  { ref:'NFR-001', type:'non_functional', category:'Performance',   priority:'must_have',   status:'implemented', title:'App loads in under 2s on 4G',               linear_id:'' },
-  { ref:'NFR-002', type:'non_functional', category:'Security',      priority:'must_have',   status:'approved',    title:'All data encrypted at rest and in transit',  linear_id:'' },
-  { ref:'NFR-003', type:'non_functional', category:'Availability',  priority:'should_have', status:'draft',       title:'99.5% uptime SLA',                          linear_id:'' },
-];
-const UAT_SEED = [
-  { id:'1', ref:'UAT-001', req_ref:'FR-001', title:'Voice capture — basic plumbing job',          status:'passed',      tester:'James', date:'15 Apr', linear_id:'REL-142', notes:'' },
-  { id:'2', ref:'UAT-002', req_ref:'FR-001', title:'Voice capture — electrical with downlights',  status:'failed',      tester:'Mia',   date:'14 Apr', linear_id:'REL-142', notes:'Fails on the word "downlights"' },
-  { id:'3', ref:'UAT-003', req_ref:'FR-002', title:'PDF quote renders on iOS 18',                 status:'in_progress', tester:'Sam',   date:'17 Apr', linear_id:'REL-136', notes:'' },
-  { id:'4', ref:'UAT-004', req_ref:'FR-003', title:'Chase email delivered — not spam',             status:'passed',      tester:'Mia',   date:'10 Apr', linear_id:'REL-139', notes:'' },
-  { id:'5', ref:'UAT-005', req_ref:'FR-004', title:'ABN lookup — valid ABN',                      status:'passed',      tester:'James', date:'8 Apr',  linear_id:'',        notes:'' },
-  { id:'6', ref:'UAT-006', req_ref:'NFR-001', title:'Load time on Telstra 4G',                    status:'draft',       tester:'',      date:'',       linear_id:'',        notes:'' },
-];
+const REQS_SEED: { ref: string; type: string; category: string; priority: string; status: string; title: string; linear_id: string }[] = [];
+const UAT_SEED: { id: string; ref: string; req_ref: string; title: string; status: string; tester: string; date: string; linear_id: string; notes: string }[] = [];
 
 // ── Pill component ────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string,string> = { todo:'p-todo', prog:'p-prog', review:'p-review', done:'p-done', block:'p-block', draft:'p-draft', active:'p-active', prospect:'p-prospect', passed:'p-passed', failed:'p-failed', in_progress:'p-prog', must_have:'p-must', should_have:'p-should', could_have:'p-could', wont_have:'p-wont', implemented:'p-done', approved:'p-review', closed_won:'p-done', trial:'p-review', qualified:'p-prog' };
@@ -820,12 +797,15 @@ function InflightView() {
 
       {tab === 'activity' && (
         <div className="data-card">
-          {ACTIVITY.map((a,i) => (
-            <div key={i} className="feed-row">
-              <span className="feed-when">{a.when}</span>
-              <span><span className="feed-who">{a.who}</span> <span style={{ color:'var(--fg2)' }}>{a.what} </span><span className="feed-ref">{a.ref}</span><span style={{ color:'var(--fg2)' }}>{a.extra}</span></span>
-            </div>
-          ))}
+          {ACTIVITY.length === 0
+            ? <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>Activity will appear here once the cron sync is running.</div>
+            : ACTIVITY.map((a,i) => (
+              <div key={i} className="feed-row">
+                <span className="feed-when">{a.when}</span>
+                <span><span className="feed-who">{a.who}</span> <span style={{ color:'var(--fg2)' }}>{a.what} </span><span className="feed-ref">{a.ref}</span><span style={{ color:'var(--fg2)' }}>{a.extra}</span></span>
+              </div>
+            ))
+          }
         </div>
       )}
     </div>
