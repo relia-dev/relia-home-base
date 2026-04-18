@@ -964,8 +964,11 @@ function InflightView() {
     })
     .then(r => r.json())
     .then((data: { data?: { issues?: { nodes: LinearIssue[] }; cycles?: { nodes: LinearCycle[] } } }) => {
+      const fetchedCycles = data.data?.cycles?.nodes ?? [];
       setIssues(data.data?.issues?.nodes ?? []);
-      setCycles(data.data?.cycles?.nodes ?? []);
+      setCycles(fetchedCycles);
+      const activeCycle = [...fetchedCycles].sort((a,b) => b.number - a.number).find(c => !c.completedAt);
+      if (activeCycle) setCycleFilter(activeCycle.id);
       setLoading(false);
     })
     .catch(e => { setError(e.message); setLoading(false); });
@@ -1006,28 +1009,25 @@ function InflightView() {
         {cycles.length > 0 && (() => {
           const sorted = [...cycles].sort((a, b) => b.number - a.number);
           const active = sorted.filter(c => !c.completedAt);
-          const recent = sorted.filter(c => c.completedAt).slice(0, 2);
-          const shown = [...active, ...recent];
-          const older = sorted.filter(c => !shown.find(s => s.id === c.id));
+          const defaultCycle = active[0]?.id ?? 'all';
           return (
-            <div style={{ marginBottom:12 }}>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:8 }}>Cycle</div>
-              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                <button className={`filter-chip${cycleFilter==='all'?' on':''}`} onClick={() => setCycleFilter('all')}>All issues</button>
-                {shown.map(c => (
-                  <button key={c.id} className={`filter-chip${cycleFilter===c.id?' on':''}`} onClick={() => setCycleFilter(c.id)}>
-                    {c.name ?? `Cycle ${c.number}`}
-                    {!c.completedAt && <span style={{ marginLeft:5, width:6, height:6, borderRadius:'50%', background:'var(--bottle)', display:'inline-block', verticalAlign:'middle' }} />}
-                  </button>
+            <div style={{ marginBottom:12, display:'flex', alignItems:'center', gap:10 }}>
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', flexShrink:0 }}>Cycle</span>
+              <select
+                value={cycleFilter}
+                onChange={e => setCycleFilter(e.target.value)}
+                style={{ fontFamily:'var(--font-body)', fontSize:13, padding:'5px 10px', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--fg1)', cursor:'pointer', outline:'none' }}
+              >
+                <option value="all">All issues</option>
+                {sorted.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name ?? `Cycle ${c.number}`}{!c.completedAt ? ' ●' : ''}
+                  </option>
                 ))}
-                {older.length > 0 && (
-                  <select value={cycleFilter} onChange={e => setCycleFilter(e.target.value)}
-                    style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', padding:'4px 10px', borderRadius:'var(--radius-pill)', border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--fg3)', cursor:'pointer' }}>
-                    <option value="">Older cycles…</option>
-                    {older.map(c => <option key={c.id} value={c.id}>{c.name ?? `Cycle ${c.number}`}</option>)}
-                  </select>
-                )}
-              </div>
+              </select>
+              {cycleFilter === 'all' && defaultCycle !== 'all' && (
+                <button className="btn btn-ghost btn-sm" onClick={() => setCycleFilter(defaultCycle)}>Jump to current</button>
+              )}
             </div>
           );
         })()}
