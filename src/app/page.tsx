@@ -303,7 +303,14 @@ function TradesDashboard() {
 
 function TradieDirectory() {
   const [tradies, setTradies] = useState(TRADIES);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name:'', trade:'', company:'', city:'', state:'', email:'', abn:'', status:'prospect' });
   const upd = (id: string, f: string, v: string) => setTradies(ts => ts.map(t => t.id === id ? {...t, [f]: v} : t));
+  const add = () => {
+    setTradies(ts => [...ts, { id: String(Date.now()), ...form }]);
+    setForm({ name:'', trade:'', company:'', city:'', state:'', email:'', abn:'', status:'prospect' });
+    setAdding(false);
+  };
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>#I</span><span className="sep">·</span><b>Trades</b><span className="sep">·</span><b>Tradie directory</b></div>
@@ -311,10 +318,29 @@ function TradieDirectory() {
         <h2>Tradie <em>directory</em></h2>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <span className="meta">{tradies.length} tradies</span>
-          <button className="btn btn-primary btn-sm"><Ic n="plus" />Add tradie</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding?'Cancel':'Add tradie'}</button>
         </div>
       </div>
+      {adding && (
+        <div className="uat-form" style={{ marginBottom:16 }}>
+          <div className="form-grid">
+            <div className="form-field"><label>Full name</label><input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder="Brendan Walsh" /></div>
+            <div className="form-field"><label>Trade</label><select value={form.trade} onChange={e => setForm(f=>({...f,trade:e.target.value}))}><option value="">Select…</option>{['Plumber','Electrician','Carpenter','Tiler','Builder','Painter','Landscaper','Other'].map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-field"><label>Company</label><input value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} placeholder="Walsh Plumbing" /></div>
+            <div className="form-field"><label>Email</label><input value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} placeholder="brendan@walshplumbing.com.au" /></div>
+            <div className="form-field"><label>City</label><input value={form.city} onChange={e => setForm(f=>({...f,city:e.target.value}))} placeholder="Geelong" /></div>
+            <div className="form-field"><label>State</label><select value={form.state} onChange={e => setForm(f=>({...f,state:e.target.value}))}><option value="">Select…</option>{['VIC','NSW','QLD','WA','SA','TAS','ACT','NT'].map(s=><option key={s}>{s}</option>)}</select></div>
+            <div className="form-field"><label>ABN (optional)</label><input value={form.abn} onChange={e => setForm(f=>({...f,abn:e.target.value}))} placeholder="51 824 753 556" /></div>
+            <div className="form-field"><label>Status</label><select value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))}><option value="prospect">Prospect</option><option value="active">Active</option></select></div>
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={add} disabled={!form.name || !form.trade}>Add tradie</button>
+          </div>
+        </div>
+      )}
       <div className="data-card">
+        {tradies.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No tradies yet. Add your first one above.</div>}
         <table className="data-table">
           <thead><tr><th>Name</th><th>Trade</th><th>Company</th><th>Location</th><th>Email</th><th>Status</th></tr></thead>
           <tbody>
@@ -323,9 +349,9 @@ function TradieDirectory() {
                 <td className="fw600"><EF value={t.name}    onSave={v => upd(t.id,'name',v)} /></td>
                 <td><EF value={t.trade}   onSave={v => upd(t.id,'trade',v)} /></td>
                 <td><EF value={t.company} onSave={v => upd(t.id,'company',v)} /></td>
-                <td><span className="mono">{t.city}, {t.state}</span></td>
+                <td><EF value={`${t.city}, ${t.state}`} onSave={v => upd(t.id,'city',v)} /></td>
                 <td><EF value={t.email}   onSave={v => upd(t.id,'email',v)} /></td>
-                <td><Pill s={t.status} /></td>
+                <td><select value={t.status} onChange={e => upd(t.id,'status',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:11, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer' }}><option value="prospect">Prospect</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="churned">Churned</option></select></td>
               </tr>
             ))}
           </tbody>
@@ -337,7 +363,14 @@ function TradieDirectory() {
 
 function EndCustomers() {
   const [customers, setCustomers] = useState(END_CUSTOMERS);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name:'', company:'', email:'', city:'', state:'', source:'' });
   const upd = (id: string, f: string, v: string) => setCustomers(cs => cs.map(c => c.id === id ? {...c, [f]: v} : c));
+  const add = () => {
+    setCustomers(cs => [...cs, { id: String(Date.now()), ...form }]);
+    setForm({ name:'', company:'', email:'', city:'', state:'', source:'' });
+    setAdding(false);
+  };
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>#I</span><span className="sep">·</span><b>Trades</b><span className="sep">·</span><b>End customers</b></div>
@@ -345,10 +378,27 @@ function EndCustomers() {
         <h2>End <em>customers</em></h2>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <span className="meta">{customers.length} contacts</span>
-          <button className="btn btn-primary btn-sm"><Ic n="plus" />Add customer</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding?'Cancel':'Add customer'}</button>
         </div>
       </div>
+      {adding && (
+        <div className="uat-form" style={{ marginBottom:16 }}>
+          <div className="form-grid">
+            <div className="form-field"><label>Full name</label><input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder="Sarah Okafor" /></div>
+            <div className="form-field"><label>Company (optional)</label><input value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} placeholder="Okafor Properties" /></div>
+            <div className="form-field"><label>Email</label><input value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} placeholder="sarah@okaforprop.com.au" /></div>
+            <div className="form-field"><label>Source</label><input value={form.source} onChange={e => setForm(f=>({...f,source:e.target.value}))} placeholder="Google, Referral…" /></div>
+            <div className="form-field"><label>City</label><input value={form.city} onChange={e => setForm(f=>({...f,city:e.target.value}))} placeholder="Melbourne" /></div>
+            <div className="form-field"><label>State</label><select value={form.state} onChange={e => setForm(f=>({...f,state:e.target.value}))}><option value="">Select…</option>{['VIC','NSW','QLD','WA','SA','TAS','ACT','NT'].map(s=><option key={s}>{s}</option>)}</select></div>
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={add} disabled={!form.name}>Add customer</button>
+          </div>
+        </div>
+      )}
       <div className="data-card">
+        {customers.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No end customers yet.</div>}
         <table className="data-table">
           <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Location</th><th>Source</th></tr></thead>
           <tbody>
@@ -357,8 +407,8 @@ function EndCustomers() {
                 <td className="fw600"><EF value={c.name}    onSave={v => upd(c.id,'name',v)} /></td>
                 <td><EF value={c.company} onSave={v => upd(c.id,'company',v)} /></td>
                 <td><EF value={c.email}   onSave={v => upd(c.id,'email',v)} /></td>
-                <td><span className="mono">{c.city}, {c.state}</span></td>
-                <td><span style={{ fontSize:12, color:'var(--fg3)' }}>{c.source}</span></td>
+                <td><EF value={`${c.city}, ${c.state}`} onSave={v => upd(c.id,'city',v)} /></td>
+                <td><EF value={c.source}  onSave={v => upd(c.id,'source',v)} /></td>
               </tr>
             ))}
           </tbody>
@@ -369,20 +419,51 @@ function EndCustomers() {
 }
 
 function DealsView() {
+  const [deals, setDeals] = useState(DEALS);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ contact:'', title:'', value:'', stage:'prospect', date:'' });
+  const upd = (id: string, f: string, v: string) => setDeals(ds => ds.map(d => d.id === id ? {...d, [f]: v} : d));
+  const add = () => {
+    const today = new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+    setDeals(ds => [...ds, { id: String(Date.now()), ...form, date: form.date || today }]);
+    setForm({ contact:'', title:'', value:'', stage:'prospect', date:'' });
+    setAdding(false);
+  };
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>#I</span><span className="sep">·</span><b>Trades</b><span className="sep">·</span><b>Deals</b></div>
-      <div className="section-head"><h2>Deals</h2><span className="meta">{DEALS.length} open</span></div>
+      <div className="section-head">
+        <h2>Deals</h2>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <span className="meta">{deals.length} deals</span>
+          <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding?'Cancel':'Add deal'}</button>
+        </div>
+      </div>
+      {adding && (
+        <div className="uat-form" style={{ marginBottom:16 }}>
+          <div className="form-grid">
+            <div className="form-field"><label>Contact</label><input value={form.contact} onChange={e => setForm(f=>({...f,contact:e.target.value}))} placeholder="Brendan Walsh" /></div>
+            <div className="form-field"><label>Deal title</label><input value={form.title} onChange={e => setForm(f=>({...f,title:e.target.value}))} placeholder="Relia Pro · annual" /></div>
+            <div className="form-field"><label>Value</label><input value={form.value} onChange={e => setForm(f=>({...f,value:e.target.value}))} placeholder="$228" /></div>
+            <div className="form-field"><label>Stage</label><select value={form.stage} onChange={e => setForm(f=>({...f,stage:e.target.value}))}>{['prospect','qualified','trial','closed_won','closed_lost'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}</select></div>
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={add} disabled={!form.contact || !form.title}>Add deal</button>
+          </div>
+        </div>
+      )}
       <div className="data-card">
+        {deals.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No deals yet.</div>}
         <table className="data-table">
           <thead><tr><th>Contact</th><th>Deal</th><th>Value</th><th>Stage</th><th>Date</th></tr></thead>
           <tbody>
-            {DEALS.map(d => (
+            {deals.map(d => (
               <tr key={d.id}>
-                <td className="fw600">{d.contact}</td>
-                <td>{d.title}</td>
-                <td><span className="mono">{d.value}</span></td>
-                <td><Pill s={d.stage} /></td>
+                <td className="fw600"><EF value={d.contact} onSave={v => upd(d.id,'contact',v)} /></td>
+                <td><EF value={d.title} onSave={v => upd(d.id,'title',v)} /></td>
+                <td><EF value={d.value} onSave={v => upd(d.id,'value',v)} /></td>
+                <td><select value={d.stage} onChange={e => upd(d.id,'stage',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:11, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer' }}>{['prospect','qualified','trial','closed_won','closed_lost'].map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}</select></td>
                 <td><span className="mono" style={{ color:'var(--fg3)' }}>{d.date}</span></td>
               </tr>
             ))}
@@ -394,22 +475,54 @@ function DealsView() {
 }
 
 function ResearchView() {
+  const [interviews, setInterviews] = useState(RESEARCH);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ who:'', role:'', q:'', score:'', date:'' });
+  const upd = (i: number, f: string, v: string | number) => setInterviews(rs => rs.map((r,j) => j===i ? {...r,[f]:v} : r));
+  const add = () => {
+    const today = new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short'}).toUpperCase();
+    setInterviews(rs => [{ ...form, score: Number(form.score) || 0, date: form.date || today }, ...rs]);
+    setForm({ who:'', role:'', q:'', score:'', date:'' });
+    setAdding(false);
+  };
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>#I</span><span className="sep">·</span><b>Trades</b><span className="sep">·</span><b>Research</b></div>
-      <div className="section-head"><h2>Research <em>&amp; interviews</em></h2><span className="meta">{RESEARCH.length} interviews</span></div>
+      <div className="section-head">
+        <h2>Research <em>&amp; interviews</em></h2>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <span className="meta">{interviews.length} interviews</span>
+          <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding?'Cancel':'Add interview'}</button>
+        </div>
+      </div>
+      {adding && (
+        <div className="uat-form" style={{ marginBottom:16 }}>
+          <div className="form-grid">
+            <div className="form-field"><label>Name</label><input value={form.who} onChange={e => setForm(f=>({...f,who:e.target.value}))} placeholder="Brendan Walsh" /></div>
+            <div className="form-field"><label>Role & location</label><input value={form.role} onChange={e => setForm(f=>({...f,role:e.target.value}))} placeholder="Plumber · Geelong" /></div>
+            <div className="form-field full"><label>Key quote</label><textarea value={form.q} onChange={e => setForm(f=>({...f,q:e.target.value}))} placeholder="What did they say?" /></div>
+            <div className="form-field"><label>NPS score (0–10)</label><input type="number" min="0" max="10" value={form.score} onChange={e => setForm(f=>({...f,score:e.target.value}))} placeholder="9" /></div>
+            <div className="form-field"><label>Date (optional)</label><input value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} placeholder="18 APR" /></div>
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={add} disabled={!form.who || !form.q}>Add interview</button>
+          </div>
+        </div>
+      )}
+      {interviews.length === 0 && !adding && <div style={{ padding:'40px 0', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No interviews yet. Add your first above.</div>}
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        {RESEARCH.map((r,i) => (
+        {interviews.map((r,i) => (
           <div key={i} className="data-card" style={{ padding:'22px 24px' }}>
-            <p style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:20, lineHeight:1.35, color:'var(--fg1)', marginBottom:14, letterSpacing:'-0.01em' }} dangerouslySetInnerHTML={{ __html:`"${r.q}"` }} />
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
+            <EF value={r.q} onSave={v => upd(i,'q',v)} multi className="research-quote" />
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:14 }}>
               <div>
-                <div style={{ fontSize:13, fontWeight:600 }}>{r.who}</div>
-                <div style={{ fontSize:11, color:'var(--fg3)', marginTop:1 }}>{r.role}</div>
+                <div style={{ fontSize:13, fontWeight:600 }}><EF value={r.who} onSave={v => upd(i,'who',v)} /></div>
+                <div style={{ fontSize:11, color:'var(--fg3)', marginTop:1 }}><EF value={r.role} onSave={v => upd(i,'role',v)} /></div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <span className="mono" style={{ color:'var(--fg3)' }}>{r.date}</span>
-                <span style={{ fontFamily:'var(--font-body)', fontSize:28, fontWeight:700, color: r.score >= 9 ? 'var(--bottle)' : r.score >= 7 ? 'var(--butter-deep)' : 'var(--red)' }}>{r.score}</span>
+                <span style={{ fontFamily:'var(--font-body)', fontSize:28, fontWeight:700, color: r.score >= 9 ? 'var(--bottle)' : r.score >= 7 ? 'var(--butter-deep)' : 'var(--red)', cursor:'pointer' }} onClick={() => { const s = prompt('NPS score (0–10):', String(r.score)); if (s !== null) upd(i,'score',Number(s)); }}>{r.score}</span>
               </div>
             </div>
           </div>

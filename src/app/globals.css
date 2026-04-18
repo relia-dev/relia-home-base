@@ -770,6 +770,18 @@ button { font-family: var(--font-body); cursor: pointer; }
   border: 1px solid var(--red); border-radius: 999px; opacity: 0.4;
 }
 
+/* ── Research quote editable ─────────────────────────────────────────────── */
+.research-quote {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.35;
+  color: var(--fg1);
+  letter-spacing: -0.01em;
+  display: block;
+  width: 100%;
+}
+
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .mono { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--fg3); }
 .fw600 { font-weight: 600; }
