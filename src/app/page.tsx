@@ -607,42 +607,172 @@ function TradeVocabView() {
   );
 }
 
+// ── Linear types ──────────────────────────────────────────────────────────
+interface LinearIssue { id: string; identifier: string; title: string; state: { name: string; type: string }; priority: number; assignee: { name: string; displayName: string } | null; team: { name: string } | null; labels: { nodes: { name: string; color: string }[] }; url: string; }
+interface LinearCycle { id: string; name: string | null; number: number; startsAt: string; endsAt: string; completedAt: string | null; issues: { nodes: LinearIssue[] }; progress: number; }
+
+const LINEAR_QUERY = `query {
+  cycles(first: 8, orderBy: updatedAt) {
+    nodes { id name number startsAt endsAt completedAt progress
+      issues(first: 100) { nodes { id identifier title
+        state { name type }
+        priority
+        assignee { name displayName }
+        team { name }
+        labels { nodes { name color } }
+        url
+      }}
+    }
+  }
+  issues(first: 100, orderBy: updatedAt, filter: { state: { type: { nin: ["completed","cancelled"] } } }) {
+    nodes { id identifier title
+      state { name type }
+      priority assignee { name displayName } team { name }
+      labels { nodes { name color } } url
+    }
+  }
+}`;
+
+function linearStatusToPill(stateType: string): string {
+  switch (stateType) {
+    case 'started':   return 'prog';
+    case 'unstarted': return 'todo';
+    case 'completed': return 'done';
+    case 'cancelled': return 'block';
+    case 'triage':    return 'review';
+    default:          return 'todo';
+  }
+}
+function priorityLabel(p: number) { return ['No priority','Urgent','High','Medium','Low'][p] ?? 'No priority'; }
+function priorityColor(p: number) { return [,'var(--red)','var(--butter-deep)','var(--navy-soft)','var(--fg3)'][p] ?? 'var(--fg3)'; }
+function initials(name: string) { return name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase(); }
+
 // ── DEV sections ──────────────────────────────────────────────────────────
 function InflightView() {
   const [tab, setTab] = useState<'list'|'activity'>('list');
-  const [filter, setFilter] = useState('all');
-  const STATUS_LABELS: Record<string,string> = { todo:'To do', prog:'In progress', review:'In review', done:'Done', block:'Blocked' };
-  const shown = filter === 'all' ? ISSUES_SEED : ISSUES_SEED.filter(i => i.status === filter);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [cycleFilter, setCycleFilter] = useState<string>('all');
+  const [issues, setIssues] = useState<LinearIssue[]>([]);
+  const [cycles, setCycles] = useState<LinearCycle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_LINEAR_API_KEY;
+    if (!key) { setLoading(false); return; }
+    fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': key },
+      body: JSON.stringify({ query: LINEAR_QUERY }),
+    })
+    .then(r => r.json())
+    .then((data: { data?: { issues?: { nodes: LinearIssue[] }; cycles?: { nodes: LinearCycle[] } } }) => {
+      setIssues(data.data?.issues?.nodes ?? []);
+      setCycles(data.data?.cycles?.nodes ?? []);
+      setLoading(false);
+    })
+    .catch(e => { setError(e.message); setLoading(false); });
+  }, []);
+
+  const activeCycles = cycles.filter(c => !c.completedAt);
+  const currentCycle = activeCycles[0];
+
+  const shownIssues = (() => {
+    let pool = issues;
+    if (cycleFilter !== 'all') {
+      const cyc = cycles.find(c => c.id === cycleFilter);
+      pool = cyc ? cyc.issues.nodes : [];
+    }
+    if (statusFilter === 'all') return pool;
+    return pool.filter(i => linearStatusToPill(i.state.type) === statusFilter);
+  })();
+
+  const statusLabels: Record<string,string> = { all:'All', todo:'To do', prog:'In progress', review:'Triage', done:'Done', block:'Cancelled' };
+
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>Dev</span><span className="sep">·</span><b>In flight</b></div>
       <div className="section-head">
         <h2>In <em>flight</em></h2>
-        <span className="meta">{ISSUES_SEED.length} issues · Linear sync</span>
+        <span className="meta">
+          {loading ? 'Loading from Linear…' : error ? 'Linear unavailable — showing cached' : `${issues.length} issues · Linear live`}
+        </span>
       </div>
+
       <div className="tab-bar">
         <button className={`tab-btn${tab==='list'?' active':''}`} onClick={() => setTab('list')}>Issues</button>
         <button className={`tab-btn${tab==='activity'?' active':''}`} onClick={() => setTab('activity')}>Activity</button>
       </div>
+
       {tab === 'list' && <>
+        {/* Cycle filter */}
+        {cycles.length > 0 && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:8 }}>Cycle</div>
+            <div className="filter-strip" style={{ marginBottom:0 }}>
+              <button className={`filter-chip${cycleFilter==='all'?' on':''}`} onClick={() => setCycleFilter('all')}>All issues</button>
+              {cycles.map(c => (
+                <button key={c.id} className={`filter-chip${cycleFilter===c.id?' on':''}`} onClick={() => setCycleFilter(c.id)}>
+                  {c.name ?? `Cycle ${c.number}`}
+                  {!c.completedAt && <span style={{ marginLeft:5, width:6, height:6, borderRadius:'50%', background:'var(--bottle)', display:'inline-block', verticalAlign:'middle' }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Status filter */}
         <div className="filter-strip">
-          {['all','prog','review','todo','block','done'].map(f => (
-            <button key={f} className={`filter-chip${filter===f?' on':''}`} onClick={() => setFilter(f)}>
-              {f==='all'?'All':STATUS_LABELS[f]}
+          {(['all','prog','todo','review','done','block'] as const).map(f => (
+            <button key={f} className={`filter-chip${statusFilter===f?' on':''}`} onClick={() => setStatusFilter(f)}>
+              {statusLabels[f]}
             </button>
           ))}
         </div>
-        <div className="data-card">
-          {shown.map(i => (
-            <div key={i.id} className="issue-row">
-              <span className="iid">{i.id}</span>
-              <span className="ititle"><b>{i.title}</b><span className="sub">{i.project}</span></span>
-              <span className={`iavatar ${i.who.toLowerCase()}`}>{i.who}</span>
-              <Pill s={i.status} />
+
+        {/* Cycle summary bar */}
+        {cycleFilter !== 'all' && (() => {
+          const cyc = cycles.find(c => c.id === cycleFilter);
+          if (!cyc) return null;
+          const start = new Date(cyc.startsAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+          const end   = new Date(cyc.endsAt).toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+          return (
+            <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-lg)', padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:24 }}>
+              <div><div className="mono" style={{ marginBottom:2 }}>Cycle</div><div style={{ fontWeight:600, fontSize:14 }}>{cyc.name ?? `Cycle ${cyc.number}`}</div></div>
+              <div><div className="mono" style={{ marginBottom:2 }}>Period</div><div style={{ fontSize:13 }}>{start} – {end}</div></div>
+              <div><div className="mono" style={{ marginBottom:2 }}>Progress</div><div style={{ fontSize:13, fontWeight:600, color:'var(--bottle)' }}>{Math.round(cyc.progress)}%</div></div>
+              <div style={{ flex:1 }}>
+                <div style={{ height:4, background:'var(--slate)', borderRadius:999 }}>
+                  <div style={{ width:`${cyc.progress}%`, height:'100%', background:'var(--bottle)', borderRadius:999, transition:'width 0.3s' }} />
+                </div>
+              </div>
+              {cyc.completedAt && <Pill s="done" label="Complete" />}
+              {!cyc.completedAt && <Pill s="prog" label="Active" />}
             </div>
+          );
+        })()}
+
+        <div className="data-card">
+          {loading && <div style={{ padding:'20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>Loading from Linear…</div>}
+          {!loading && shownIssues.length === 0 && <div style={{ padding:'20px', color:'var(--fg3)', fontSize:13 }}>No issues match this filter.</div>}
+          {shownIssues.map(i => (
+            <a key={i.id} className="issue-row" href={i.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration:'none' }}>
+              <span className="iid">{i.identifier}</span>
+              <span className="ititle">
+                <b>{i.title}</b>
+                {i.team && <span className="sub">{i.team.name}</span>}
+                {i.labels.nodes.map(l => <span key={l.name} style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:3, background:`${l.color}22`, color:l.color, fontFamily:'var(--font-mono)', letterSpacing:'0.06em' }}>{l.name}</span>)}
+              </span>
+              {i.assignee && <span className="iavatar" title={i.assignee.displayName}>{initials(i.assignee.displayName)}</span>}
+              <span style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+                <Pill s={linearStatusToPill(i.state.type)} label={i.state.name} />
+                {i.priority > 0 && <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color: priorityColor(i.priority), letterSpacing:'0.06em' }}>{priorityLabel(i.priority)}</span>}
+              </span>
+            </a>
           ))}
         </div>
       </>}
+
       {tab === 'activity' && (
         <div className="data-card">
           {ACTIVITY.map((a,i) => (
