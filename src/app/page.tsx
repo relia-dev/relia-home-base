@@ -884,6 +884,30 @@ function IssueRow({ issue, apiKey }: { issue: LinearIssue; apiKey: string }) {
 interface LinearIssue { id: string; identifier: string; title: string; state: { name: string; type: string }; priority: number; assignee: { name: string; displayName: string } | null; team: { name: string } | null; labels: { nodes: { name: string; color: string }[] }; url: string; }
 interface LinearCycle { id: string; name: string | null; number: number; startsAt: string; endsAt: string; completedAt: string | null; issues: { nodes: LinearIssue[] }; progress: number; }
 
+const LINEAR_ACTIVITY_QUERY = `query {
+  issues(first: 30, orderBy: updatedAt) {
+    nodes {
+      id identifier title url
+      updatedAt
+      state { name type }
+      assignee { displayName }
+      comments(first: 5, orderBy: createdAt) {
+        nodes { id body createdAt user { displayName } }
+      }
+      history(first: 3) {
+        nodes {
+          id createdAt
+          actor { displayName }
+          toState { name }
+          fromState { name }
+          toAssignee { displayName }
+          fromAssignee { displayName }
+        }
+      }
+    }
+  }
+}`;
+
 const LINEAR_QUERY = `query {
   cycles(first: 8, orderBy: updatedAt) {
     nodes { id name number startsAt endsAt completedAt progress
@@ -1065,16 +1089,88 @@ function InflightView() {
   );
 }
 
-function ActivityView() {
-  const [entries, setEntries] = useState(ACTIVITY);
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ who: '', what: '', ref: '', extra: '' });
+interface ActivityEntry {
+  id: string; when: string; whenTs: number; who: string; what: string;
+  ref: string; extra: string; source: 'linear' | 'manual'; issueId?: string; issueUrl?: string;
+}
 
-  const add = () => {
-    setEntries(es => [{ when: 'Just now', ...form }, ...es]);
-    setForm({ who: '', what: '', ref: '', extra: '' });
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? 'yesterday' : `${d}d ago`;
+}
+
+function ActivityView() {
+  const [linearEntries, setLinearEntries] = useState<ActivityEntry[]>([]);
+  const [manualEntries, setManualEntries] = useState<ActivityEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [addType, setAddType] = useState<'general'|'comment'>('general');
+  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
+  const [form, setForm] = useState({ who: '', what: '', ref: '', extra: '', issueId: '', comment: '' });
+  const [posting, setPosting] = useState(false);
+  const apiKey = process.env.NEXT_PUBLIC_LINEAR_API_KEY ?? '';
+
+  useEffect(() => {
+    if (!apiKey) { setLoading(false); return; }
+    fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': apiKey },
+      body: JSON.stringify({ query: LINEAR_ACTIVITY_QUERY }),
+    })
+    .then(r => r.json())
+    .then((data: { data?: { issues?: { nodes: Array<{ id: string; identifier: string; title: string; url: string; updatedAt: string; state: { name: string }; assignee: { displayName: string } | null; comments: { nodes: Array<{ id: string; body: string; createdAt: string; user: { displayName: string } }> }; history: { nodes: Array<{ id: string; createdAt: string; actor: { displayName: string } | null; toState: { name: string } | null; fromState: { name: string } | null; toAssignee: { displayName: string } | null }> } }> } } }) => {
+      const issues = data.data?.issues?.nodes ?? [];
+      const entries: ActivityEntry[] = [];
+      issues.forEach(issue => {
+        issue.comments.nodes.forEach(c => {
+          entries.push({ id: `c-${c.id}`, when: timeAgo(c.createdAt), whenTs: new Date(c.createdAt).getTime(), who: c.user.displayName, what: 'commented on', ref: issue.identifier, extra: ` — "${c.body.slice(0,60)}${c.body.length > 60 ? '…' : ''}"`, source: 'linear', issueId: issue.id, issueUrl: issue.url });
+        });
+        issue.history.nodes.forEach(h => {
+          if (!h.actor) return;
+          let what = 'updated';
+          let extra = '';
+          if (h.toState && h.fromState) { what = 'moved'; extra = ` from ${h.fromState.name} → ${h.toState.name}`; }
+          else if (h.toState) { what = 'set status'; extra = ` to ${h.toState.name}`; }
+          else if (h.toAssignee) { what = 'assigned'; extra = ` to ${h.toAssignee.displayName}`; }
+          entries.push({ id: `h-${h.id}`, when: timeAgo(h.createdAt), whenTs: new Date(h.createdAt).getTime(), who: h.actor.displayName, what, ref: issue.identifier, extra, source: 'linear', issueId: issue.id, issueUrl: issue.url });
+        });
+      });
+      entries.sort((a, b) => b.whenTs - a.whenTs);
+      setLinearEntries(entries);
+      setLinearIssues(issues);
+      setLoading(false);
+    })
+    .catch(() => setLoading(false));
+  }, []);
+
+  const addManual = () => {
+    setManualEntries(es => [{ id: String(Date.now()), when: 'just now', whenTs: Date.now(), who: form.who, what: form.what, ref: form.ref, extra: form.extra ? ` — ${form.extra}` : '', source: 'manual' }, ...es]);
+    setForm({ who:'', what:'', ref:'', extra:'', issueId:'', comment:'' });
     setAdding(false);
   };
+
+  const postComment = async () => {
+    if (!apiKey || !form.issueId || !form.comment) return;
+    setPosting(true);
+    await fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': apiKey },
+      body: JSON.stringify({ query: `mutation { commentCreate(input: { issueId: "${form.issueId}", body: ${JSON.stringify(form.comment)} }) { success comment { id createdAt } } }` }),
+    });
+    const issue = linearIssues.find(i => i.id === form.issueId);
+    setManualEntries(es => [{ id: String(Date.now()), when: 'just now', whenTs: Date.now(), who: 'You', what: 'commented on', ref: issue?.identifier ?? '', extra: ` — "${form.comment.slice(0,60)}…"`, source: 'linear', issueUrl: issue?.url }, ...es]);
+    setForm({ who:'', what:'', ref:'', extra:'', issueId:'', comment:'' });
+    setPosting(false);
+    setAdding(false);
+  };
+
+  const all = [...manualEntries, ...linearEntries].sort((a,b) => b.whenTs - a.whenTs);
 
   return (
     <div className="hub-page">
@@ -1083,30 +1179,62 @@ function ActivityView() {
         <h2>Activity</h2>
         <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding ? 'Cancel' : 'Add entry'}</button>
       </div>
+
       {adding && (
-        <div className="uat-form" style={{ marginBottom: 16 }}>
-          <div className="form-grid">
-            <div className="form-field"><label>Who</label><input value={form.who} onChange={e => setForm(f => ({...f, who: e.target.value}))} placeholder="James" /></div>
-            <div className="form-field"><label>Action</label><input value={form.what} onChange={e => setForm(f => ({...f, what: e.target.value}))} placeholder="shipped, fixed, reviewed…" /></div>
-            <div className="form-field"><label>Ref</label><input value={form.ref} onChange={e => setForm(f => ({...f, ref: e.target.value}))} placeholder="REL-142 or v1.0.0" /></div>
-            <div className="form-field"><label>Detail (optional)</label><input value={form.extra} onChange={e => setForm(f => ({...f, extra: e.target.value}))} placeholder=" — short description" /></div>
+        <div className="uat-form" style={{ marginBottom:16 }}>
+          <div className="tab-bar" style={{ marginBottom:14 }}>
+            <button className={`tab-btn${addType==='general'?' active':''}`} onClick={() => setAddType('general')}>General note</button>
+            <button className={`tab-btn${addType==='comment'?' active':''}`} onClick={() => setAddType('comment')}>Comment on Linear issue</button>
           </div>
-          <div className="form-actions">
-            <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={add} disabled={!form.who || !form.what}>Add</button>
-          </div>
+          {addType === 'general' ? (
+            <div className="form-grid">
+              <div className="form-field"><label>Who</label><input value={form.who} onChange={e => setForm(f=>({...f,who:e.target.value}))} placeholder="James" /></div>
+              <div className="form-field"><label>Action</label><input value={form.what} onChange={e => setForm(f=>({...f,what:e.target.value}))} placeholder="shipped, fixed, reviewed…" /></div>
+              <div className="form-field"><label>Ref (optional)</label><input value={form.ref} onChange={e => setForm(f=>({...f,ref:e.target.value}))} placeholder="REL-142 or v1.0.0" /></div>
+              <div className="form-field"><label>Detail (optional)</label><input value={form.extra} onChange={e => setForm(f=>({...f,extra:e.target.value}))} placeholder="short description" /></div>
+              <div className="form-field" style={{ gridColumn:'1/-1', justifyContent:'flex-end', flexDirection:'row', display:'flex', gap:8 }}>
+                <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={addManual} disabled={!form.who || !form.what}>Add note</button>
+              </div>
+            </div>
+          ) : (
+            <div className="form-grid">
+              <div className="form-field full"><label>Linear issue</label>
+                <select value={form.issueId} onChange={e => setForm(f=>({...f,issueId:e.target.value}))}>
+                  <option value="">Select an issue…</option>
+                  {linearIssues.map(i => <option key={i.id} value={i.id}>{i.identifier} — {i.title}</option>)}
+                </select>
+              </div>
+              <div className="form-field full"><label>Comment</label><textarea value={form.comment} onChange={e => setForm(f=>({...f,comment:e.target.value}))} placeholder="Write your comment — it'll post directly to Linear." /></div>
+              <div className="form-field" style={{ gridColumn:'1/-1', justifyContent:'flex-end', flexDirection:'row', display:'flex', gap:8 }}>
+                <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={postComment} disabled={!form.issueId || !form.comment || posting}>{posting ? 'Posting…' : 'Post to Linear'}</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
       <div className="data-card">
-        {entries.length === 0
-          ? <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No activity yet. Add an entry or wait for the cron sync.</div>
-          : entries.map((a, i) => (
-            <div key={i} className="feed-row">
-              <span className="feed-when">{a.when}</span>
-              <span><span className="feed-who">{a.who}</span> <span style={{ color:'var(--fg2)' }}>{a.what} </span><span className="feed-ref">{a.ref}</span><span style={{ color:'var(--fg2)' }}>{a.extra}</span></span>
-            </div>
-          ))
-        }
+        {loading && <div style={{ padding:'20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>Loading from Linear…</div>}
+        {!loading && all.length === 0 && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No activity yet.</div>}
+        {all.map(a => (
+          <div key={a.id} className="feed-row" style={{ gridTemplateColumns:'80px 1fr auto' }}>
+            <span className="feed-when">{a.when}</span>
+            <span>
+              <span className="feed-who">{a.who}</span>{' '}
+              <span style={{ color:'var(--fg2)' }}>{a.what} </span>
+              {a.issueUrl
+                ? <a href={a.issueUrl} target="_blank" rel="noopener noreferrer" className="feed-ref" style={{ textDecoration:'none' }}>{a.ref}</a>
+                : <span className="feed-ref">{a.ref}</span>
+              }
+              <span style={{ color:'var(--fg2)' }}>{a.extra}</span>
+            </span>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color: a.source==='linear' ? 'var(--blue)' : 'var(--fg3)', padding:'2px 6px', borderRadius:3, background: a.source==='linear' ? 'var(--blue-soft)' : 'var(--slate)' }}>
+              {a.source === 'linear' ? 'Linear' : 'Manual'}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
