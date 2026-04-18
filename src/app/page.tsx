@@ -474,35 +474,57 @@ function DealsView() {
   );
 }
 
+const RESEARCH_CATEGORIES = ['Voice capture', 'Quoting', 'Onboarding', 'Pricing', 'Follow-up', 'Materials', 'General'];
+
 function ResearchView() {
-  const [interviews, setInterviews] = useState(RESEARCH);
+  const [interviews, setInterviews] = useState(
+    RESEARCH.map((r, i) => ({ ...r, id: String(i), category: 'General', archived: false, notes: '' }))
+  );
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ who:'', role:'', q:'', score:'', date:'' });
-  const upd = (i: number, f: string, v: string | number) => setInterviews(rs => rs.map((r,j) => j===i ? {...r,[f]:v} : r));
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [catFilter, setCatFilter] = useState('all');
+  const [showArchived, setShowArchived] = useState(false);
+  const [form, setForm] = useState({ who:'', role:'', q:'', score:'', date:'', category:'General', notes:'' });
+
+  const upd = (id: string, f: string, v: string | number | boolean) =>
+    setInterviews(rs => rs.map(r => r.id === id ? {...r, [f]: v} : r));
+
   const add = () => {
     const today = new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short'}).toUpperCase();
-    setInterviews(rs => [{ ...form, score: Number(form.score) || 0, date: form.date || today }, ...rs]);
-    setForm({ who:'', role:'', q:'', score:'', date:'' });
+    setInterviews(rs => [{ ...form, id: String(Date.now()), score: Number(form.score) || 0, date: form.date || today, archived: false }, ...rs]);
+    setForm({ who:'', role:'', q:'', score:'', date:'', category:'General', notes:'' });
     setAdding(false);
   };
+
+  const visible = interviews.filter(r => {
+    if (r.archived !== showArchived) return false;
+    if (catFilter !== 'all' && r.category !== catFilter) return false;
+    return true;
+  });
+
+  const scoreColor = (s: number) => s >= 9 ? 'var(--bottle)' : s >= 7 ? 'var(--butter-deep)' : 'var(--red)';
+
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>#I</span><span className="sep">·</span><b>Trades</b><span className="sep">·</span><b>Research</b></div>
       <div className="section-head">
         <h2>Research <em>&amp; interviews</em></h2>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <span className="meta">{interviews.length} interviews</span>
-          <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding?'Cancel':'Add interview'}</button>
+          <span className="meta">{interviews.filter(r=>!r.archived).length} active · {interviews.filter(r=>r.archived).length} archived</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowArchived(a => !a)}>{showArchived ? 'Show active' : 'Show archived'}</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setAdding(a => !a)}><Ic n="plus" />{adding?'Cancel':'Add'}</button>
         </div>
       </div>
+
       {adding && (
         <div className="uat-form" style={{ marginBottom:16 }}>
           <div className="form-grid">
             <div className="form-field"><label>Name</label><input value={form.who} onChange={e => setForm(f=>({...f,who:e.target.value}))} placeholder="Brendan Walsh" /></div>
             <div className="form-field"><label>Role & location</label><input value={form.role} onChange={e => setForm(f=>({...f,role:e.target.value}))} placeholder="Plumber · Geelong" /></div>
+            <div className="form-field"><label>Category</label><select value={form.category} onChange={e => setForm(f=>({...f,category:e.target.value}))}>{RESEARCH_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div className="form-field"><label>NPS (0–10)</label><input type="number" min="0" max="10" value={form.score} onChange={e => setForm(f=>({...f,score:e.target.value}))} placeholder="9" /></div>
             <div className="form-field full"><label>Key quote</label><textarea value={form.q} onChange={e => setForm(f=>({...f,q:e.target.value}))} placeholder="What did they say?" /></div>
-            <div className="form-field"><label>NPS score (0–10)</label><input type="number" min="0" max="10" value={form.score} onChange={e => setForm(f=>({...f,score:e.target.value}))} placeholder="9" /></div>
-            <div className="form-field"><label>Date (optional)</label><input value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} placeholder="18 APR" /></div>
+            <div className="form-field full"><label>Notes (optional)</label><textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} placeholder="Context, follow-up actions…" /></div>
           </div>
           <div className="form-actions">
             <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
@@ -510,21 +532,55 @@ function ResearchView() {
           </div>
         </div>
       )}
-      {interviews.length === 0 && !adding && <div style={{ padding:'40px 0', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No interviews yet. Add your first above.</div>}
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        {interviews.map((r,i) => (
-          <div key={i} className="data-card" style={{ padding:'22px 24px' }}>
-            <EF value={r.q} onSave={v => upd(i,'q',v)} multi className="research-quote" />
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:14 }}>
-              <div>
-                <div style={{ fontSize:13, fontWeight:600 }}><EF value={r.who} onSave={v => upd(i,'who',v)} /></div>
-                <div style={{ fontSize:11, color:'var(--fg3)', marginTop:1 }}><EF value={r.role} onSave={v => upd(i,'role',v)} /></div>
+
+      {/* Category filter */}
+      <div className="filter-strip">
+        <button className={`filter-chip${catFilter==='all'?' on':''}`} onClick={() => setCatFilter('all')}>All</button>
+        {RESEARCH_CATEGORIES.filter(c => interviews.some(r => r.category === c)).map(c => (
+          <button key={c} className={`filter-chip${catFilter===c?' on':''}`} onClick={() => setCatFilter(c)}>{c}</button>
+        ))}
+      </div>
+
+      {visible.length === 0 && <div style={{ padding:'32px 0', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No {showArchived ? 'archived' : 'active'} interviews{catFilter !== 'all' ? ` in ${catFilter}` : ''}.</div>}
+
+      <div className="data-card">
+        {visible.map(r => (
+          <div key={r.id}>
+            {/* Compact row */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto auto', gap:12, alignItems:'center', padding:'10px 20px', borderBottom: expanded===r.id ? 'none' : '1px solid var(--border)', cursor:'pointer', background: expanded===r.id ? 'var(--slate-soft)' : 'transparent' }}
+              onClick={() => setExpanded(e => e === r.id ? null : r.id)}>
+              <div style={{ minWidth:0 }}>
+                <span style={{ fontSize:13, fontWeight:600 }}>{r.who}</span>
+                <span style={{ fontSize:11, color:'var(--fg3)', marginLeft:8 }}>{r.role}</span>
+                <span style={{ fontSize:12, color:'var(--fg2)', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:1, fontStyle:'italic' }}>"{r.q.replace(/<[^>]+>/g,'').slice(0,80)}{r.q.length > 80 ? '…' : ''}"</span>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <span className="mono" style={{ color:'var(--fg3)' }}>{r.date}</span>
-                <span style={{ fontFamily:'var(--font-body)', fontSize:28, fontWeight:700, color: r.score >= 9 ? 'var(--bottle)' : r.score >= 7 ? 'var(--butter-deep)' : 'var(--red)', cursor:'pointer' }} onClick={() => { const s = prompt('NPS score (0–10):', String(r.score)); if (s !== null) upd(i,'score',Number(s)); }}>{r.score}</span>
-              </div>
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', padding:'2px 7px', borderRadius:3, background:'var(--slate)', color:'var(--fg3)', whiteSpace:'nowrap' }}>{r.category}</span>
+              <span className="mono" style={{ color:'var(--fg3)', fontSize:10, whiteSpace:'nowrap' }}>{r.date}</span>
+              <span style={{ fontSize:20, fontWeight:700, color:scoreColor(r.score), width:28, textAlign:'center' }}>{r.score}</span>
+              <span style={{ fontSize:16, color:'var(--fg3)', transform: expanded===r.id ? 'rotate(90deg)' : 'none', transition:'transform 0.15s', display:'block', width:16 }}>›</span>
             </div>
+
+            {/* Expanded detail */}
+            {expanded === r.id && (
+              <div style={{ padding:'16px 20px', background:'var(--slate-soft)', borderBottom:'1px solid var(--border)' }}>
+                <p style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, lineHeight:1.4, color:'var(--fg1)', marginBottom:12 }}>
+                  "<EF value={r.q} onSave={v => upd(r.id,'q',v)} multi />"
+                </p>
+                {r.notes && <p style={{ fontSize:13, color:'var(--fg3)', marginBottom:12 }}>{r.notes}</p>}
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                  <select value={r.category} onChange={e => upd(r.id,'category',e.target.value)} style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', padding:'3px 8px', borderRadius:3, border:'1px solid var(--border)', background:'var(--bg-card)', color:'var(--fg3)', cursor:'pointer' }}>
+                    {RESEARCH_CATEGORIES.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                  <span style={{ fontSize:11, color:'var(--fg3)' }}>NPS:</span>
+                  <input type="number" min="0" max="10" value={r.score} onChange={e => upd(r.id,'score',Number(e.target.value))}
+                    style={{ width:48, fontFamily:'var(--font-body)', fontSize:13, fontWeight:700, textAlign:'center', border:'1px solid var(--border)', borderRadius:4, padding:'2px 4px', color:scoreColor(r.score) }} />
+                  <div style={{ flex:1 }} />
+                  <button className="btn btn-ghost btn-sm" onClick={() => upd(r.id,'archived', !r.archived)}>
+                    {r.archived ? 'Restore' : 'Archive'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
