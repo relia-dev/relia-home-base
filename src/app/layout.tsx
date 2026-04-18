@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Relia Intranet',
+  title: 'Relia home base',
   description: 'Internal staff dashboard',
   robots: { index: false, follow: false },
 };
