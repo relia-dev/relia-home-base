@@ -1124,7 +1124,8 @@ function DevDashboard() {
         const active = sorted.find(c=>!c.completedAt) ?? sorted[0];
         if (active) setSelectedCycleId(active.id);
       });
-    loadLinearFromSupabase().then(all => setUrgentIssues(all.filter(i => i.priority <= 2 && i.status !== 'done' && i.status !== 'cancelled')));
+    // Urgent issues from Supabase cache, fallback populated after cycles load
+    loadLinearFromSupabase().then(all => { if (all.length > 0) setUrgentIssues(all.filter(i => i.priority <= 2 && i.status !== 'done' && i.status !== 'cancelled')); });
   }, []);
 
   // Stats
@@ -1136,7 +1137,18 @@ function DevDashboard() {
   const reqsApproved = reqs.filter(r => r.status === 'implemented' || r.status === 'approved').length;
   const activeCycle = cycles.find(c => !c.completedAt);
   const selectedCycle = cycles.find(c => c.id === selectedCycleId) ?? activeCycle;
-  const urgentCount = urgentIssues.filter(i => i.priority === 1).length;
+
+  // Derive urgent issues from all cycle issues if Supabase cache is empty
+  const urgentFromCycles = cycles
+    .flatMap(c => c.issues.nodes)
+    .filter(i => i.priority <= 2 && i.state.type !== 'completed' && i.state.type !== 'cancelled')
+    .filter((i, idx, arr) => arr.findIndex(x => x.id === i.id) === idx) // dedupe
+    .sort((a, b) => a.priority - b.priority);
+
+  const urgentDisplay = urgentIssues.length > 0
+    ? urgentIssues
+    : urgentFromCycles.map(i => ({ linear_id: i.id, identifier: i.identifier, title: i.title, priority: i.priority, status: i.state.type, linear_url: i.url, storage_path:'', file_name:'', synced_at:'', updated_at:'' } as StoredIssue));
+  const urgentCount = (urgentIssues.length > 0 ? urgentIssues : urgentFromCycles).filter(i => i.priority === 1).length;
 
   // Timeline helpers
   const cyclesWithDates = cycles.filter(c => c.startsAt && c.endsAt);
@@ -1189,7 +1201,7 @@ function DevDashboard() {
         <div className="stat-card">
           <div className="stat-label">Urgent issues</div>
           <div className="stat-value" style={{ color: urgentCount > 0 ? 'var(--red)' : 'var(--bottle)' }}>{urgentCount}</div>
-          <div className="stat-delta">{urgentIssues.length} high priority total</div>
+          <div className="stat-delta">{urgentDisplay.length} high priority total</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Requirements</div>
@@ -1209,10 +1221,10 @@ function DevDashboard() {
                 <h3>🔴 Needs attention</h3>
                 <button className="btn btn-ghost btn-sm" onClick={() => navigate('dev','inflight')}>All issues →</button>
               </div>
-              {urgentIssues.length === 0 && blockedIssues.length === 0 && failedTests.length === 0
+              {urgentDisplay.length === 0 && failedTests.length === 0
                 ? <div style={{ padding:'20px', color:'var(--bottle)', fontSize:13, textAlign:'center' }}>Nothing urgent. Good.</div>
                 : <div>
-                    {urgentIssues.slice(0,4).map(i => (
+                    {urgentDisplay.slice(0,5).map(i => (
                       <div key={i.linear_id} style={{ display:'grid', gridTemplateColumns:'64px 1fr auto', gap:12, alignItems:'center', padding:'10px 20px', borderBottom:'1px solid var(--border)' }}>
                         <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--fg3)', letterSpacing:'0.06em' }}>{i.identifier}</span>
                         <span style={{ fontSize:13, fontWeight:500, color:'var(--fg1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{i.title}</span>
