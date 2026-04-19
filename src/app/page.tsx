@@ -1446,19 +1446,168 @@ function RequirementsView() {
   );
 }
 
+interface UATAttachment { id: string; file_name: string; storage_path: string; url: string; linear_issue_id: string; caption: string; }
+
+function UATTestRow({ t, upd, linearIssues }: {
+  t: typeof UAT_SEED[0];
+  upd: (id: string, f: string, v: string) => void;
+  linearIssues: LinearIssue[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [attachments, setAttachments] = useState<UATAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachLinear, setAttachLinear] = useState('');
+  const [caption, setCaption] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+
+  const loadAttachments = async () => {
+    const { data } = await supabase
+      .from('uat_attachments')
+      .select('*')
+      .eq('uat_test_id', t.id)
+      .order('created_at', { ascending: false });
+    if (!data) return;
+    const withUrls = await Promise.all(data.map(async (a: { id: string; file_name: string; storage_path: string; linear_issue_id: string; caption: string }) => {
+      const { data: urlData } = await supabase.storage.from('uat-attachments').createSignedUrl(a.storage_path, 3600);
+      return { ...a, url: urlData?.signedUrl ?? '' };
+    }));
+    setAttachments(withUrls);
+  };
+
+  const handleExpand = () => {
+    if (!expanded) loadAttachments();
+    setExpanded(e => !e);
+  };
+
+  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const path = `${t.id}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('uat-attachments').upload(path, file);
+    if (!error) {
+      await supabase.from('uat_attachments').insert({
+        uat_test_id: t.id,
+        linear_issue_id: attachLinear || null,
+        storage_path: path,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        caption: caption || null,
+      });
+      setCaption('');
+      setAttachLinear('');
+      await loadAttachments();
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const deleteAttachment = async (id: string, path: string) => {
+    await supabase.storage.from('uat-attachments').remove([path]);
+    await supabase.from('uat_attachments').delete().eq('id', id);
+    setAttachments(as => as.filter(a => a.id !== id));
+  };
+
+  return (
+    <>
+      <tr style={{ cursor:'pointer' }} onClick={handleExpand}>
+        <td><span className="mono">{t.ref}</span></td>
+        <td><span className="mono" style={{ color:'var(--fg3)' }}>{t.req_ref}</span></td>
+        <td className="fw600"><EF value={t.title} onSave={v => upd(t.id,'title',v)} /></td>
+        <td>{t.linear_id ? <span className="mono" style={{ color:'var(--navy)' }}>{t.linear_id}</span> : <span style={{ color:'var(--fg3)', fontSize:12 }}>—</span>}</td>
+        <td><EF value={t.tester} onSave={v => upd(t.id,'tester',v)} /></td>
+        <td onClick={e => e.stopPropagation()}>
+          <select value={t.status} onChange={e => upd(t.id,'status',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:11, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
+            {['draft','ready','in_progress','passed','failed','blocked'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
+          </select>
+        </td>
+        <td><span style={{ fontSize:11, color:'var(--fg3)' }}>{expanded ? '▲' : '▼'} {attachments.length > 0 ? `${attachments.length} img` : 'imgs'}</span></td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={7} style={{ padding:0, background:'var(--slate-soft)', borderBottom:'1px solid var(--border)' }}>
+            <div style={{ padding:'16px 20px' }}>
+              {/* Upload area */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:8 }}>Upload image</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto auto', gap:8, alignItems:'end' }}>
+                  <div className="form-field">
+                    <label>Caption (optional)</label>
+                    <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. iOS 18 voice drop bug" />
+                  </div>
+                  <div className="form-field">
+                    <label>Link to Linear issue (optional)</label>
+                    <select value={attachLinear} onChange={e => setAttachLinear(e.target.value)}>
+                      <option value="">None</option>
+                      {linearIssues.map(i => <option key={i.id} value={i.identifier}>{i.identifier} — {i.title}</option>)}
+                    </select>
+                  </div>
+                  <label style={{ cursor:'pointer', marginBottom:1 }}>
+                    <input ref={fileRef} type="file" accept="image/*,video/mp4" style={{ display:'none' }} onChange={upload} disabled={uploading} />
+                    <span className={`btn btn-primary btn-sm${uploading?' disabled':''}`} style={{ display:'inline-flex', alignItems:'center', gap:6, opacity: uploading ? 0.6 : 1 }}>
+                      {uploading ? 'Uploading…' : <><Ic n="plus" size={12} />Choose file</>}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Image gallery */}
+              {attachments.length === 0
+                ? <div style={{ fontSize:12, color:'var(--fg3)', fontStyle:'italic' }}>No images yet — upload one above.</div>
+                : (
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:10 }}>
+                    {attachments.map(a => (
+                      <div key={a.id} style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', overflow:'hidden' }}>
+                        <img src={a.url} alt={a.caption || a.file_name} style={{ width:'100%', height:120, objectFit:'cover', display:'block' }} />
+                        <div style={{ padding:'8px 10px' }}>
+                          {a.caption && <div style={{ fontSize:11, fontWeight:500, marginBottom:3 }}>{a.caption}</div>}
+                          {a.linear_issue_id && <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--navy)', letterSpacing:'0.06em' }}>{a.linear_issue_id}</div>}
+                          <div style={{ fontSize:10, color:'var(--fg3)', marginTop:4, display:'flex', justifyContent:'space-between' }}>
+                            <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ color:'var(--navy)' }}>View</a>
+                            <button style={{ background:'none', border:'none', color:'var(--red)', fontSize:10, cursor:'pointer' }} onClick={() => deleteAttachment(a.id, a.storage_path)}>Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 function UATView() {
   const [tests, setTests] = useState(UAT_SEED);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title:'', req_ref:'', tester:'', linear_id:'', notes:'' });
+  const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const upd = (id: string, f: string, v: string) => setTests(ts => ts.map(t => t.id === id ? {...t, [f]: v} : t));
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_LINEAR_API_KEY;
+    if (!key) return;
+    fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': key },
+      body: JSON.stringify({ query: `query { issues(first: 100) { nodes { id identifier title state { name type } priority team { name } labels { nodes { name color } } url assignee { name displayName } } } }` }),
+    }).then(r => r.json()).then((d: { data?: { issues?: { nodes: LinearIssue[] } } }) => setLinearIssues(d.data?.issues?.nodes ?? []));
+  }, []);
+
   const addTest = () => {
     const nextRef = `UAT-${String(tests.length + 1).padStart(3,'0')}`;
     setTests(ts => [...ts, { id: String(Date.now()), ref: nextRef, status: 'draft', date: new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short'}), ...form }]);
     setForm({ title:'', req_ref:'', tester:'', linear_id:'', notes:'' });
     setAdding(false);
   };
-  const statusClass: Record<string,string> = { draft:'p-draft', ready:'p-todo', in_progress:'p-prog', passed:'p-passed', failed:'p-failed', blocked:'p-block' };
+
   const summary = { passed: tests.filter(t=>t.status==='passed').length, failed: tests.filter(t=>t.status==='failed').length, in_progress: tests.filter(t=>t.status==='in_progress').length, draft: tests.filter(t=>t.status==='draft').length };
+
   return (
     <div className="hub-page">
       <div className="breadcrumb"><span>Dev</span><span className="sep">·</span><b>UAT</b></div>
@@ -1478,7 +1627,7 @@ function UATView() {
           <div className="form-grid">
             <div className="form-field full"><label>Title</label><input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="What are you testing?" /></div>
             <div className="form-field"><label>Requirement ref</label><select value={form.req_ref} onChange={e => setForm(f => ({...f, req_ref: e.target.value}))}><option value="">None</option>{REQS_SEED.map(r => <option key={r.ref} value={r.ref}>{r.ref} — {r.title}</option>)}</select></div>
-            <div className="form-field"><label>Linear issue</label><select value={form.linear_id} onChange={e => setForm(f => ({...f, linear_id: e.target.value}))}><option value="">None</option>{ISSUES_SEED.map(i => <option key={i.id} value={i.id}>{i.id} — {i.title}</option>)}</select></div>
+            <div className="form-field"><label>Linear issue</label><select value={form.linear_id} onChange={e => setForm(f => ({...f, linear_id: e.target.value}))}><option value="">None</option>{linearIssues.map(i => <option key={i.id} value={i.identifier}>{i.identifier} — {i.title}</option>)}</select></div>
             <div className="form-field"><label>Tester</label><input value={form.tester} onChange={e => setForm(f => ({...f, tester: e.target.value}))} placeholder="Name" /></div>
             <div className="form-field"><label>Notes</label><input value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} placeholder="Optional" /></div>
           </div>
@@ -1489,25 +1638,15 @@ function UATView() {
         </div>
       )}
       <div className="data-card">
-        <table className="data-table">
-          <thead><tr><th>Ref</th><th>Requirement</th><th>Test</th><th>Linear issue</th><th>Tester</th><th>Status</th></tr></thead>
-          <tbody>
-            {tests.map(t => (
-              <tr key={t.id}>
-                <td><span className="mono">{t.ref}</span></td>
-                <td><span className="mono" style={{ color:'var(--fg3)' }}>{t.req_ref}</span></td>
-                <td className="fw600"><EF value={t.title} onSave={v => upd(t.id,'title',v)} /></td>
-                <td>{t.linear_id ? <span className="mono" style={{ color:'var(--navy)' }}>{t.linear_id}</span> : <span style={{ color:'var(--fg3)', fontSize:12 }}>—</span>}</td>
-                <td><EF value={t.tester} onSave={v => upd(t.id,'tester',v)} /></td>
-                <td>
-                  <select value={t.status} onChange={e => upd(t.id,'status',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:11, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
-                    {['draft','ready','in_progress','passed','failed','blocked'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-                  </select>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {tests.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No UAT tests yet. Add your first above.</div>}
+        {tests.length > 0 && (
+          <table className="data-table">
+            <thead><tr><th>Ref</th><th>Requirement</th><th>Test</th><th>Linear issue</th><th>Tester</th><th>Status</th><th>Images</th></tr></thead>
+            <tbody>
+              {tests.map(t => <UATTestRow key={t.id} t={t} upd={upd} linearIssues={linearIssues} />)}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
