@@ -2559,11 +2559,12 @@ function UATTestRow({ t, upd, linearIssues }: {
           <td colSpan={8} style={{ padding:0, background:'var(--slate-soft)', borderBottom:'1px solid var(--border)' }}>
             <div style={{ padding:'16px 20px' }}>
               {/* Notes — editable inline */}
-              <div style={{ marginBottom:16, padding:'10px 14px', background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start' }}>
-                <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', paddingTop:4, flexShrink:0 }}>Notes</span>
-                <div style={{ flex:1, fontSize:13, color:'var(--fg1)', lineHeight:1.5 }}>
-                  <EF value={t.notes || ''} onSave={v => upd(t.id,'notes',v)} />
-                </div>
+              <div style={{ marginBottom:16, padding:'10px 14px', background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)' }}>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:6 }}>Notes</div>
+                {t.notes
+                  ? <div style={{ fontSize:13, color:'var(--fg1)', lineHeight:1.5 }}><EF value={t.notes} onSave={v => upd(t.id,'notes',v)} multi /></div>
+                  : <button onClick={e => { e.stopPropagation(); upd(t.id,'notes',' '); }} style={{ background:'none', border:'1px dashed var(--border)', borderRadius:'var(--radius-sm)', padding:'6px 12px', color:'var(--fg3)', fontSize:12, cursor:'pointer', width:'100%', textAlign:'left' }}>+ Add notes…</button>
+                }
               </div>
               {/* Upload area */}
               <div style={{ marginBottom:16 }}>
