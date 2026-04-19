@@ -179,11 +179,71 @@ function Pill({ s, label }: { s: string; label?: string }) {
   return <span className={`pill ${STATUS_MAP[s] ?? 'p-draft'}`}><span className="dot" />{label ?? STATUS_LABEL[s] ?? s}</span>;
 }
 
+// ── Linear sync to Supabase ───────────────────────────────────────────────
+interface StoredIssue { id: string; linear_id: string; identifier: string; title: string; status: string; priority: number; project: string | null; labels: string[]; linear_url: string; synced_at: string; updated_at: string; }
+
+async function syncLinearToSupabase(apiKey: string, forceFullSync = false): Promise<{ count: number; error?: string }> {
+  const supabase = createClient();
+
+  // Find most recent sync time for incremental update
+  let since = new Date(0).toISOString();
+  if (!forceFullSync) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any).from('linear_issues').select('synced_at').order('synced_at', { ascending: false }).limit(1);
+    if (data?.[0]?.synced_at) since = data[0].synced_at;
+  }
+
+  const filter = forceFullSync ? '' : `, filter: { updatedAt: { gte: "${since}" } }`;
+  const query = `{ issues(first: 250, orderBy: updatedAt${filter}) { nodes { id identifier title description state { name type } priority assignee { displayName } team { name } labels { nodes { name } } url updatedAt } } }`;
+
+  try {
+    const res = await fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': apiKey },
+      body: JSON.stringify({ query }),
+    });
+    const json = await res.json() as { data?: { issues?: { nodes: Array<{ id: string; identifier: string; title: string; description: string; state: { name: string; type: string }; priority: number; assignee: { displayName: string } | null; team: { name: string } | null; labels: { nodes: { name: string }[] }; url: string; updatedAt: string }> } } };
+    const issues = json.data?.issues?.nodes ?? [];
+    const now = new Date().toISOString();
+
+    for (const i of issues) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from('linear_issues').upsert({
+        linear_id:  i.id,
+        identifier: i.identifier,
+        title:      i.title,
+        description: i.description ?? null,
+        status:     i.state.type === 'completed' ? 'done' : i.state.type === 'cancelled' ? 'cancelled' : i.state.type === 'started' ? 'in_progress' : i.state.type === 'backlog' ? 'backlog' : 'todo',
+        priority:   i.priority,
+        project:    i.team?.name ?? null,
+        labels:     i.labels.nodes.map((l: { name: string }) => l.name),
+        linear_url: i.url,
+        synced_at:  now,
+        updated_at: i.updatedAt,
+      }, { onConflict: 'linear_id' });
+    }
+    return { count: issues.length };
+  } catch (e) {
+    return { count: 0, error: e instanceof Error ? e.message : 'Sync failed' };
+  }
+}
+
+async function loadLinearFromSupabase(): Promise<StoredIssue[]> {
+  const supabase = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any).from('linear_issues').select('*').order('identifier', { ascending: false });
+  return (data ?? []).sort((a: StoredIssue, b: StoredIssue) => {
+    const na = parseInt(a.identifier.replace('REL-',''));
+    const nb = parseInt(b.identifier.replace('REL-',''));
+    return nb - na;
+  });
+}
+
 // ── Linear issue search ───────────────────────────────────────────────────
 function LinearSearch({ value, onChange, issues, placeholder = 'Search issues…' }: {
   value: string;
   onChange: (id: string, identifier: string) => void;
-  issues: LinearIssue[];
+  issues: Array<{ id: string; identifier: string; title: string }>;
   placeholder?: string;
 }) {
   const [query, setQuery] = useState(value);
@@ -1052,30 +1112,58 @@ function InflightView() {
   const [issues, setIssues] = useState<LinearIssue[]>([]);
   const [cycles, setCycles] = useState<LinearCycle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
   const [error, setError] = useState('');
+  const apiKey = process.env.NEXT_PUBLIC_LINEAR_API_KEY ?? '';
+
+  const loadFromSupabase = async () => {
+    const stored = await loadLinearFromSupabase();
+    if (stored.length > 0) {
+      // Map StoredIssue to LinearIssue shape for display
+      setIssues(stored.map(s => ({
+        id: s.linear_id, identifier: s.identifier, title: s.title,
+        state: { name: s.status, type: s.status === 'done' ? 'completed' : s.status === 'in_progress' ? 'started' : s.status === 'backlog' ? 'backlog' : 'unstarted' },
+        priority: s.priority, assignee: null, team: s.project ? { name: s.project } : null,
+        labels: { nodes: (s.labels ?? []).map((l: string) => ({ name: l, color: '#999' })) },
+        url: s.linear_url,
+      })));
+      return true;
+    }
+    return false;
+  };
+
+  const doSync = async (force = false) => {
+    if (!apiKey) return;
+    setSyncing(true); setSyncMsg('');
+    const result = await syncLinearToSupabase(apiKey, force);
+    if (result.error) { setSyncMsg(`Sync failed: ${result.error}`); }
+    else { setSyncMsg(`Synced ${result.count} issues`); setTimeout(() => setSyncMsg(''), 3000); }
+    await loadFromSupabase();
+    setSyncing(false);
+  };
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_LINEAR_API_KEY;
     if (!key) { setLoading(false); return; }
-    fetch('https://api.linear.app/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': key },
-      body: JSON.stringify({ query: LINEAR_QUERY }),
-    })
-    .then(r => r.json())
-    .then((data: { data?: { issues?: { nodes: LinearIssue[] }; cycles?: { nodes: LinearCycle[] } } }) => {
-      const fetchedCycles = data.data?.cycles?.nodes ?? [];
-      setIssues(data.data?.issues?.nodes ?? []);
-      setCycles(fetchedCycles);
+    // Load from Supabase first, sync from Linear for cycles (cycles stay live)
+    Promise.all([
+      loadFromSupabase(),
+      fetch('https://api.linear.app/graphql', { method:'POST', headers:{'Content-Type':'application/json','Authorization':key}, body: JSON.stringify({ query: `{ cycles(first:10, orderBy:updatedAt) { nodes { id name number startsAt endsAt completedAt progress issues { nodes { id identifier title state { name type } priority assignee { name displayName } team { name } labels { nodes { name color } } url } } } } }` }) }).then(r=>r.json())
+    ]).then(async ([hasData, cycleData]: [boolean, { data?: { cycles?: { nodes: LinearCycle[] } } }]) => {
+      const fetchedCycles = cycleData?.data?.cycles?.nodes ?? [];
+      setCycles([...fetchedCycles].sort((a,b) => b.number - a.number));
       const activeCycle = [...fetchedCycles].sort((a,b) => b.number - a.number).find(c => !c.completedAt);
       if (activeCycle) setCycleFilter(activeCycle.id);
+      // If Supabase is empty, do a full sync
+      if (!hasData) await doSync(true);
       setLoading(false);
-    })
-    .catch(e => { setError(e.message); setLoading(false); });
+    }).catch(e => { setError(e.message); setLoading(false); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [search, setSearch] = useState('');
   const activeCycles = cycles.filter(c => !c.completedAt);
-  const currentCycle = activeCycles[0];
 
   const shownIssues = (() => {
     let pool = issues;
@@ -1083,8 +1171,12 @@ function InflightView() {
       const cyc = cycles.find(c => c.id === cycleFilter);
       pool = cyc ? cyc.issues.nodes : [];
     }
-    if (statusFilter === 'all') return pool;
-    return pool.filter(i => linearStatusToPill(i.state.type) === statusFilter);
+    if (statusFilter !== 'all') pool = pool.filter(i => linearStatusToPill(i.state.type) === statusFilter);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      pool = pool.filter(i => i.identifier.toLowerCase().includes(q) || i.title.toLowerCase().includes(q));
+    }
+    return pool;
   })();
 
   const statusLabels: Record<string,string> = { all:'All', todo:'To do', prog:'In progress', review:'Triage', done:'Done', block:'Cancelled' };
@@ -1094,9 +1186,12 @@ function InflightView() {
       <div className="breadcrumb"><span>Dev</span><span className="sep">·</span><b>In flight</b></div>
       <div className="section-head">
         <h2>In <em>flight</em></h2>
-        <span className="meta">
-          {loading ? 'Loading from Linear…' : error ? 'Linear unavailable — showing cached' : `${issues.length} issues · Linear live`}
-        </span>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <span className="meta">{loading ? 'Loading…' : `${issues.length} issues · Supabase cache`}</span>
+          {syncMsg && <span style={{fontSize:11,color:'var(--bottle)',fontFamily:'var(--font-mono)'}}>{syncMsg}</span>}
+          <button className="btn btn-ghost btn-sm" onClick={() => doSync(false)} disabled={syncing}>{syncing ? 'Syncing…' : '↻ Sync'}</button>
+          {error && <span style={{fontSize:11,color:'var(--red)'}}>{error}</span>}
+        </div>
       </div>
 
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
@@ -1107,6 +1202,20 @@ function InflightView() {
       </div>
 
       {tab === 'list' && <>
+        {/* Search */}
+        <div style={{ position:'relative', marginBottom:14 }}>
+          <div style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--fg3)', pointerEvents:'none' }}>
+            <Ic n="search" size={14} />
+          </div>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by REL number or title…"
+            style={{ width:'100%', padding:'8px 12px 8px 36px', fontFamily:'var(--font-body)', fontSize:14, color:'var(--fg1)', background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', outline:'none' }}
+          />
+          {search && <button onClick={() => setSearch('')} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fg3)', cursor:'pointer', fontSize:14 }}>✕</button>}
+        </div>
+
         {/* Cycle filter */}
         {cycles.length > 0 && (() => {
           const sorted = [...cycles].sort((a, b) => b.number - a.number);
@@ -1732,11 +1841,8 @@ function RequirementsView() {
     fetch('https://api.linear.app/graphql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': key },
-      body: JSON.stringify({ query: `query { issues(first: 250, orderBy: createdAt) { nodes { id identifier title state { name type } } } }` }),
-    }).then(r => r.json()).then((d: { data?: { issues?: { nodes: LinearIssue[] } } }) => {
-      const sorted = [...(d.data?.issues?.nodes ?? [])].sort((a,b) => parseInt(b.identifier.replace('REL-','')) - parseInt(a.identifier.replace('REL-','')));
-      setLinearIssues(sorted);
     });
+    loadLinearFromSupabase().then(stored => setLinearIssues(stored.map(s => ({ id: s.linear_id, identifier: s.identifier, title: s.title, state: { name: s.status, type: s.status }, priority: s.priority, assignee: null, team: null, labels: { nodes: [] }, url: s.linear_url }))));
   }, []);
 
   const shown = filter === 'all' ? reqs : reqs.filter(r => r.type === filter);
@@ -2025,16 +2131,9 @@ function UATView() {
     fetch('https://api.linear.app/graphql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': key },
-      body: JSON.stringify({ query: `query { issues(first: 250, orderBy: createdAt) { nodes { id identifier title state { name type } priority team { name } labels { nodes { name color } } url assignee { name displayName } } } }` }),
-    }).then(r => r.json()).then((d: { data?: { issues?: { nodes: LinearIssue[] } } }) => {
-      // Sort by identifier number descending so newest appear first in search
-      const sorted = [...(d.data?.issues?.nodes ?? [])].sort((a, b) => {
-        const na = parseInt(a.identifier.replace('REL-',''));
-        const nb = parseInt(b.identifier.replace('REL-',''));
-        return nb - na;
-      });
-      setLinearIssues(sorted);
     });
+    // Load issues from Supabase cache
+    loadLinearFromSupabase().then(stored => setLinearIssues(stored.map(s => ({ id: s.linear_id, identifier: s.identifier, title: s.title, state: { name: s.status, type: s.status }, priority: s.priority, assignee: null, team: null, labels: { nodes: [] }, url: s.linear_url }))));
   }, []);
 
   const addTest = () => {
