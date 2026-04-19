@@ -1414,10 +1414,70 @@ function ActivityView() {
   );
 }
 
-// ── User stories seed ─────────────────────────────────────────────────────
+// ── User stories seed — full product backlog ──────────────────────────────
 const STORIES_SEED = [
-  // Voice & Transcription
-  { id:'us1', ref:'US-001', persona:'tradie',       platform:'ios',     status:'done',        developer:'jon',   i_want_to:'describe a job by voice in under 60 seconds',          so_that:'I can create a quote without stopping to type mid-job',        linear_ids:['REL-5','REL-6','REL-8','REL-9','REL-88'],  acceptance_criteria:'Voice captured, transcript editable, trade terms recognised, mic errors handled gracefully' },
+  // ── MVP 1 ─────────────────────────────────────────────────────────────
+  // Voice
+  { id:'us1',  ref:'US-001', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:1, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'describe a job by voice in under 60 seconds',              so_that:'I can create a quote without stopping to type mid-job',                     linear_ids:['REL-5','REL-6','REL-8','REL-9','REL-88'],           acceptance_criteria:'Voice captured; transcript editable; mic errors handled gracefully; works offline' },
+  { id:'us2',  ref:'US-002', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:2, status:'in_progress', developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'have trade-specific vocabulary recognised accurately',      so_that:'I don\'t have to correct "downlights" every time',                         linear_ids:['REL-79'],                                          acceptance_criteria:'Trade vocab seeded per trade; confidence scores shown; user corrections recorded' },
+  // AI extraction
+  { id:'us3',  ref:'US-003', mvp:'MVP 1', persona:'tradie',        platform:'backend', priority:1, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'have materials automatically extracted from my description', so_that:'I don\'t have to build a materials list from scratch',                     linear_ids:['REL-10','REL-11','REL-13','REL-105'],               acceptance_criteria:'Materials list generated in <5s; >90% accuracy on common jobs; user can add/remove/edit' },
+  { id:'us4',  ref:'US-004', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:2, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'see confidence scores on extracted materials',              so_that:'I know which items to double-check before sending',                         linear_ids:['REL-78','REL-106'],                                 acceptance_criteria:'Low-confidence items flagged; corrections saved for model improvement' },
+  // Pricing
+  { id:'us5',  ref:'US-005', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:2, status:'in_progress', developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'see live Bunnings pricing on my materials list',             so_that:'my quote reflects real costs without manual lookups',                       linear_ids:['REL-16','REL-17','REL-80','REL-98','REL-120','REL-121'], acceptance_criteria:'Prices from Bunnings API; fallback to manual if unavailable; stock status shown' },
+  { id:'us6',  ref:'US-006', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:2, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'manually enter prices when live pricing isn\'t available',  so_that:'I can complete a quote even when the API is down',                          linear_ids:['REL-109'],                                          acceptance_criteria:'Any material price manually overridable; override persists on save' },
+  // PDF & quote generation
+  { id:'us7',  ref:'US-007', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:1, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'generate a professional PDF quote',                         so_that:'I can send a branded, compliant document to my customer',                  linear_ids:['REL-114','REL-67','REL-21'],                         acceptance_criteria:'PDF: tradie details, line items, labour, GST, total; labelled Quote or Estimate' },
+  { id:'us8',  ref:'US-008', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:3, status:'in_progress', developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'include site photos in my quote PDF',                       so_that:'customers can see the scope of work',                                       linear_ids:['REL-71','REL-72','REL-73','REL-74','REL-75'],        acceptance_criteria:'Photos captured in-app; compressed; stored in Supabase; embedded in PDF output' },
+  // Estimate management
+  { id:'us9',  ref:'US-009', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:1, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'see all my estimates in one list',                          so_that:'I can track what\'s been sent, accepted, and paid',                        linear_ids:['REL-65','REL-107'],                                 acceptance_criteria:'Home screen lists all estimates from Supabase; filterable by status' },
+  { id:'us10', ref:'US-010', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:2, status:'in_progress', developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'manually update the status of an estimate',                 so_that:'I can track jobs agreed verbally or outside the app',                       linear_ids:['REL-117'],                                          acceptance_criteria:'Status transitions: Draft→Sent→Accepted→In Progress→Invoiced→Paid' },
+  // Auth & profile
+  { id:'us11', ref:'US-011', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:1, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'sign in with Apple',                                        so_that:'I don\'t need another password',                                            linear_ids:['REL-63','REL-85'],                                  acceptance_criteria:'Apple Sign-In works; Supabase auth linked; account deletion flow available' },
+  { id:'us12', ref:'US-012', mvp:'MVP 1', persona:'tradie',        platform:'ios',     priority:2, status:'done',        developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'set my trade and business details once',                    so_that:'every quote is pre-filled with my info',                                    linear_ids:['REL-81','REL-64'],                                  acceptance_criteria:'Business name, ABN, trade, contact saved; applied to all new quotes' },
+  // Legal & App Store (operational — relia_team)
+  { id:'us13', ref:'US-013', mvp:'MVP 1', persona:'relia_team',    platform:'all',     priority:1, status:'in_progress', developer:'nhung', cycle_id:'',  linear_identifier:'', i_want_to:'have published privacy policy, T&Cs, and support URLs',     so_that:'we meet App Store requirements and are legally covered',                    linear_ids:['REL-77','REL-34','REL-35','REL-36'],                acceptance_criteria:'Pages live at reliaplatform.io/privacy, /terms, /support; linked from app and listing' },
+  { id:'us14', ref:'US-014', mvp:'MVP 1', persona:'relia_team',    platform:'ios',     priority:1, status:'in_progress', developer:'nhung', cycle_id:'',  linear_identifier:'', i_want_to:'submit the app to the App Store',                           so_that:'tradies can find and download Relia',                                       linear_ids:['REL-31','REL-32','REL-33','REL-37','REL-38','REL-41','REL-42','REL-43'], acceptance_criteria:'Apple Dev account enrolled; listing complete; screenshots; review passed' },
+  { id:'us15', ref:'US-015', mvp:'MVP 1', persona:'relia_team',    platform:'ios',     priority:1, status:'in_progress', developer:'nhung', cycle_id:'',  linear_identifier:'', i_want_to:'have the landing page live and collecting waitlist signups', so_that:'we can build an audience before launch',                                    linear_ids:['REL-44','REL-119'],                                 acceptance_criteria:'Landing page live; waitlist form submits to Supabase; email confirmation sent' },
+  // ── MVP 2+ ────────────────────────────────────────────────────────────
+  // Customer sharing & acceptance
+  { id:'us16', ref:'US-016', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:1, status:'in_progress', developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'share a quote with a customer via a unique link',            so_that:'they can view it on any device without needing the app',                    linear_ids:['REL-115'],                                          acceptance_criteria:'Share token generated; web page renders quote; token expires after 30 days' },
+  { id:'us17', ref:'US-017', mvp:'MVP 2+', persona:'end_customer', platform:'web',     priority:1, status:'in_progress', developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'accept or decline a quote online',                          so_that:'I don\'t have to call the tradie to confirm',                               linear_ids:['REL-116'],                                          acceptance_criteria:'Accept/decline on web page; tradie notified by email; status updates in app' },
+  { id:'us18', ref:'US-018', mvp:'MVP 2+', persona:'tradie',       platform:'backend', priority:2, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'automatically chase customers who haven\'t responded',       so_that:'I don\'t have to manually follow up every quote',                           linear_ids:[],                                                   acceptance_criteria:'Auto-chase email at day 2 and day 5; tradie can disable per quote; tracked in estimate status' },
+  { id:'us19', ref:'US-019', mvp:'MVP 2+', persona:'end_customer', platform:'web',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'enter my job details via a guided web form',                so_that:'the tradie receives a pre-scoped job without me calling',                   linear_ids:[],                                                   acceptance_criteria:'AI bot guides customer through job scoping; details sent to tradie\'s dashboard; photos uploaded' },
+  { id:'us20', ref:'US-020', mvp:'MVP 2+', persona:'tradie',       platform:'web',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'request a private review from a customer after a job',      so_that:'I can build a track record',                                                linear_ids:['REL-118'],                                          acceptance_criteria:'Review request sent post-job; ratings private to tradie; aggregated score shown in app' },
+  // Notifications
+  { id:'us21', ref:'US-021', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:2, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'get a push notification when a customer opens or accepts my quote', so_that:'I can follow up at the right moment',                               linear_ids:[],                                                   acceptance_criteria:'Push notification on quote open and on accept/decline; deep links to that estimate' },
+  // Subscription
+  { id:'us22', ref:'US-022', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:2, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'subscribe monthly or yearly',                               so_that:'I can access premium features like live pricing and unlimited quotes',      linear_ids:['REL-24','REL-25'],                                  acceptance_criteria:'RevenueCat paywall after free trial; monthly and yearly plans; subscription enforced in app' },
+  // Invoice & payments
+  { id:'us23', ref:'US-023', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'convert an accepted quote into an invoice',                 so_that:'I don\'t have to re-enter anything to bill the customer',                   linear_ids:[],                                                   acceptance_criteria:'One-tap convert; invoice PDF generated with payment terms; invoice number auto-assigned' },
+  { id:'us24', ref:'US-024', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'mark a quote as paid',                                      so_that:'I can track which jobs have been settled',                                  linear_ids:[],                                                   acceptance_criteria:'Paid status on estimate; payment date recorded; filter by paid/unpaid on home screen' },
+  // Scheduling
+  { id:'us25', ref:'US-025', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'get a suggested booking time when a quote is accepted',      so_that:'I can schedule the job without a back-and-forth',                           linear_ids:[],                                                   acceptance_criteria:'Suggested times based on tradie\'s calendar availability; customer confirms via web link' },
+  // Analytics
+  { id:'us26', ref:'US-026', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'see my win rate, average quote value, and busiest trade',   so_that:'I can understand how my business is performing',                            linear_ids:['REL-113'],                                          acceptance_criteria:'Dashboard shows win rate, avg quote, quotes sent this month, top trade types' },
+  { id:'us27', ref:'US-027', mvp:'MVP 2+', persona:'relia_team',   platform:'backend', priority:2, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'track how tradies use the quoting flow',                    so_that:'we can identify drop-off points and improve conversion',                    linear_ids:['REL-50'],                                           acceptance_criteria:'PostHog integrated; key events tracked: voice start, materials confirmed, quote sent, accepted' },
+  // AI improvement
+  { id:'us28', ref:'US-028', mvp:'MVP 2+', persona:'relia_team',   platform:'backend', priority:2, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'continuously improve AI extraction accuracy',               so_that:'the model gets better the more it\'s used',                                 linear_ids:['REL-96','REL-95','REL-94','REL-111'],               acceptance_criteria:'Correction events logged; fine-tuning triggered at ≥500 corrections; accuracy tracked in eval harness' },
+  { id:'us29', ref:'US-029', mvp:'MVP 2+', persona:'relia_team',   platform:'backend', priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'A/B test prompts per trade and region',                     so_that:'we can find the best extraction approach for each use case',                linear_ids:['REL-97'],                                           acceptance_criteria:'Prompt variants assignable per trade/region; results tracked in eval harness; winner promoted' },
+  // Materials ordering
+  { id:'us30', ref:'US-030', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'auto-order materials when a quote is accepted',             so_that:'I don\'t have to make a separate Bunnings run',                              linear_ids:[],                                                   acceptance_criteria:'One-tap order via Bunnings API; order confirmation sent to tradie; materials status tracked' },
+  // Web app
+  { id:'us31', ref:'US-031', mvp:'MVP 2+', persona:'tradie',       platform:'web',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'access Relia from a desktop browser',                       so_that:'I can manage quotes from my computer as well as my phone',                  linear_ids:['REL-30'],                                           acceptance_criteria:'Flutter web build deployed; full quoting flow available in browser; syncs with mobile' },
+  // Multi-trade
+  { id:'us32', ref:'US-032', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:3, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'quote across multiple trades in one job',                   so_that:'builders and project managers can handle combined-trade jobs',              linear_ids:[],                                                   acceptance_criteria:'Multiple trade types selectable per estimate; materials list organised by trade; PDF shows breakdown' },
+  // Offline
+  { id:'us33', ref:'US-033', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:4, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'create a quote when I have no internet connection',          so_that:'I can still work on a remote site',                                         linear_ids:['REL-27'],                                           acceptance_criteria:'Quote saved locally when offline; auto-synced when connection restored; no data loss' },
+  // Team accounts
+  { id:'us34', ref:'US-034', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:4, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'add employees who can create quotes on my behalf',          so_that:'I can scale my business without doing every quote myself',                  linear_ids:[],                                                   acceptance_criteria:'Invite by email; employee quotes linked to business account; owner can review before send' },
+  // GST & compliance
+  { id:'us35', ref:'US-035', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:2, status:'draft',       developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'have GST correctly calculated and shown on my quotes',       so_that:'I stay compliant without doing tax calculations myself',                    linear_ids:['REL-69','REL-68'],                                  acceptance_criteria:'GST auto-applied for registered tradies; non-GST option available; state contract thresholds warned' },
+  // CSV & export
+  { id:'us36', ref:'US-036', mvp:'MVP 2+', persona:'tradie',       platform:'ios',     priority:4, status:'draft',       developer:'',      cycle_id:'',  linear_identifier:'', i_want_to:'export my quotes to CSV for my accountant',                 so_that:'I can hand off financial records easily',                                   linear_ids:['REL-66'],                                           acceptance_criteria:'CSV export of all estimates for date range; includes tradie, customer, total, status, date' },
+  // Localisation
+  { id:'us37', ref:'US-037', mvp:'MVP 2+', persona:'relia_team',   platform:'ios',     priority:3, status:'draft',       developer:'jon',   cycle_id:'',  linear_identifier:'', i_want_to:'support multiple Australian states and regions',             so_that:'pricing and compliance rules are correct everywhere in AU',                 linear_ids:['REL-90'],                                           acceptance_criteria:'State selected at onboarding; contract thresholds and GST rules per state; material pricing by region' },
+];
   { id:'us2', ref:'US-002', persona:'tradie',       platform:'ios',     status:'in_progress', developer:'jon',   i_want_to:'have trade-specific vocabulary recognised accurately',  so_that:'I don\'t have to correct "downlights" to "down lights" every time', linear_ids:['REL-79'],  acceptance_criteria:'Trade vocab seeded per trade type; confidence score shown for ambiguous terms' },
   // AI extraction
   { id:'us3', ref:'US-003', persona:'tradie',       platform:'backend', status:'done',        developer:'jon',   i_want_to:'have materials automatically extracted from my job description', so_that:'I don\'t have to build a materials list from scratch',    linear_ids:['REL-10','REL-11','REL-13','REL-105'],  acceptance_criteria:'Materials list generated in <5s; extraction accuracy >90% on common trade jobs' },
@@ -1450,9 +1510,12 @@ const STORIES_SEED = [
 ];
 
 type UserStory = typeof STORIES_SEED[0];
-const PERSONAS = ['tradie','end_customer','relia_team','admin'] as const;
-const PLATFORMS = ['ios','android','web','backend','all'] as const;
+const PERSONAS   = ['tradie','end_customer','relia_team','admin'] as const;
+const PLATFORMS  = ['ios','android','web','backend','all'] as const;
 const STORY_STATUSES = ['draft','ready','in_progress','done','deferred'] as const;
+const PRIORITY_LABELS = ['','Urgent','High','Medium','Low'] as const;
+const PRIORITY_COLORS = ['var(--fg3)','var(--red)','var(--butter-deep)','var(--navy-soft)','var(--fg3)'] as const;
+const LINEAR_TEAM_ID = '7b65c41c-554e-4a8f-9aa2-27e8b55da254';
 
 function UserStoriesView() {
   const [stories, setStories] = useState<UserStory[]>(STORIES_SEED);
@@ -1461,35 +1524,62 @@ function UserStoriesView() {
   const [filterPersona, setFilterPersona] = useState('all');
   const [filterPlatform, setFilterPlatform] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterMvp, setFilterMvp] = useState('all');
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
-  const [form, setForm] = useState({ persona:'tradie', platform:'ios', i_want_to:'', so_that:'', acceptance_criteria:'', developer:'', linear_ids:'' });
+  const [cycles, setCycles] = useState<LinearCycle[]>([]);
+  const [creating, setCreating] = useState<string|null>(null);
+  const [form, setForm] = useState({ mvp:'MVP 1', persona:'tradie', platform:'ios', priority:2, i_want_to:'', so_that:'', acceptance_criteria:'', developer:'', linear_ids:'' });
+  const apiKey = process.env.NEXT_PUBLIC_LINEAR_API_KEY ?? '';
 
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_LINEAR_API_KEY;
-    if (!key) return;
-    fetch('https://api.linear.app/graphql', { method:'POST', headers:{'Content-Type':'application/json','Authorization':key}, body: JSON.stringify({ query:`{ issues(first:150) { nodes { id identifier title state { name type } priority team { name } labels { nodes { name color } } url assignee { name displayName } } } }` }) })
-      .then(r=>r.json()).then((d:{data?:{issues?:{nodes:LinearIssue[]}}}) => setLinearIssues(d.data?.issues?.nodes??[]));
+    if (!apiKey) return;
+    fetch('https://api.linear.app/graphql', { method:'POST', headers:{'Content-Type':'application/json','Authorization':apiKey},
+      body: JSON.stringify({ query:`{ issues(first:150) { nodes { id identifier title state { name type } priority team { name } labels { nodes { name color } } url assignee { name displayName } } } cycles(first:10, orderBy:updatedAt) { nodes { id name number startsAt endsAt completedAt progress issues { nodes { id identifier title state { name type } priority assignee { name displayName } team { name } labels { nodes { name color } } url } } } }` }) })
+      .then(r=>r.json()).then((d:{data?:{issues?:{nodes:LinearIssue[]};cycles?:{nodes:LinearCycle[]}}}) => {
+        setLinearIssues(d.data?.issues?.nodes??[]);
+        setCycles([...( d.data?.cycles?.nodes??[])].sort((a,b)=>b.number-a.number));
+      });
   }, []);
 
   const add = () => {
     const nextRef = `US-${String(stories.length+1).padStart(3,'0')}`;
-    setStories(ss => [...ss, { id: String(Date.now()), ref: nextRef, status:'draft', ...form, linear_ids: form.linear_ids.split(',').map(s=>s.trim()).filter(Boolean), acceptance_criteria: form.acceptance_criteria }]);
-    setForm({ persona:'tradie', platform:'ios', i_want_to:'', so_that:'', acceptance_criteria:'', developer:'', linear_ids:'' });
+    setStories(ss => [...ss, { id: String(Date.now()), ref: nextRef, status:'draft', cycle_id:'', linear_identifier:'', ...form, linear_ids: form.linear_ids.split(',').map(s=>s.trim()).filter(Boolean) }]);
+    setForm({ mvp:'MVP 1', persona:'tradie', platform:'ios', priority:2, i_want_to:'', so_that:'', acceptance_criteria:'', developer:'', linear_ids:'' });
     setAdding(false);
   };
 
-  const upd = (id: string, f: string, v: string | string[]) => setStories(ss => ss.map(s => s.id===id ? {...s,[f]:v} : s));
+  const upd = (id: string, f: string, v: string | string[] | number) => setStories(ss => ss.map(s => s.id===id ? {...s,[f]:v} : s));
+
+  const createInLinear = async (s: UserStory) => {
+    if (!apiKey) return;
+    setCreating(s.id);
+    const title = `As a ${s.persona.replace('_',' ')}, I want to ${s.i_want_to}`;
+    const description = `**So that** ${s.so_that}\n\n**Acceptance criteria:**\n${s.acceptance_criteria || '—'}\n\n**User story:** ${s.ref}`;
+    const mutation = `mutation { issueCreate(input: { teamId: "${LINEAR_TEAM_ID}", title: ${JSON.stringify(title)}, description: ${JSON.stringify(description)}, priority: ${s.priority}${s.cycle_id ? `, cycleId: "${s.cycle_id}"` : ''} }) { success issue { id identifier url } } }`;
+    const res = await fetch('https://api.linear.app/graphql', { method:'POST', headers:{'Content-Type':'application/json','Authorization':apiKey}, body: JSON.stringify({ query: mutation }) });
+    const data = await res.json() as { data?: { issueCreate?: { success: boolean; issue?: { identifier: string; url: string } } } };
+    const created = data.data?.issueCreate?.issue;
+    if (created) {
+      upd(s.id, 'linear_identifier', created.identifier);
+      upd(s.id, 'linear_ids', [...(Array.isArray(s.linear_ids)?s.linear_ids:[]), created.identifier]);
+    }
+    setCreating(null);
+  };
 
   const filtered = stories.filter(s => {
     if (filterPersona !== 'all' && s.persona !== filterPersona) return false;
     if (filterPlatform !== 'all' && s.platform !== filterPlatform) return false;
     if (filterStatus !== 'all' && s.status !== filterStatus) return false;
+    if (filterMvp !== 'all' && s.mvp !== filterMvp) return false;
     return true;
   });
 
   const personaColor: Record<string,string> = { tradie:'var(--navy)', end_customer:'var(--bottle-deep)', relia_team:'var(--butter-deep)', admin:'var(--red)' };
-  const platformColor: Record<string,string> = { ios:'var(--blue-hover)', android:'var(--bottle-deep)', web:'var(--butter-deep)', backend:'var(--navy-soft)', all:'var(--fg3)' };
   const statusColor: Record<string,[string,string]> = { draft:['var(--slate)','var(--fg3)'], ready:['var(--blue-soft)','var(--blue-hover)'], in_progress:['var(--butter-soft)','var(--butter-deep)'], done:['var(--bottle-soft)','var(--bottle-deep)'], deferred:['var(--red-soft)','var(--red-deep)'] };
+  const activeCycle = cycles.find(c=>!c.completedAt);
+
+  const mvp1Count = stories.filter(s=>s.mvp==='MVP 1').length;
+  const mvp1Done  = stories.filter(s=>s.mvp==='MVP 1'&&s.status==='done').length;
 
   return (
     <div className="hub-page">
@@ -1497,26 +1587,39 @@ function UserStoriesView() {
       <div className="section-head">
         <h2>User <em>stories</em></h2>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <span className="meta">{filtered.length} of {stories.length}</span>
+          <span className="meta">{filtered.length} shown · {stories.length} total</span>
           <button className="btn btn-primary btn-sm" onClick={() => setAdding(a=>!a)}><Ic n="plus" />{adding?'Cancel':'Add story'}</button>
         </div>
       </div>
 
-      {/* Note on operational vs technical */}
+      {/* MVP 1 progress bar */}
+      <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:'14px 20px',marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+          <span style={{fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--fg3)'}}>MVP 1 progress</span>
+          <span style={{fontFamily:'var(--font-body)',fontSize:13,fontWeight:600,color:'var(--bottle)'}}>{mvp1Done}/{mvp1Count} done</span>
+        </div>
+        <div style={{height:6,background:'var(--slate)',borderRadius:999}}>
+          <div style={{width:`${(mvp1Done/mvp1Count)*100}%`,height:'100%',background:'var(--bottle)',borderRadius:999,transition:'width 0.4s'}} />
+        </div>
+      </div>
+
+      {/* Editor's note */}
       <div className="editors-note" style={{marginBottom:20}}>
-        <p>Stories marked <b>relia_team</b> are operational tasks (legal, App Store, marketing) — they belong in Ops, not engineering. Stories marked <b>tradie</b> or <b>end_customer</b> drive the product. Consider splitting mixed Linear issues (e.g. REL-35 "T&Cs URL" = one ops task for writing + one engineering task for the link).</p>
+        <p>Stories tagged <b>relia_team</b> are operational (legal, App Store, marketing). Use "Create in Linear" to push any untracked story directly to your Linear backlog and assign it to a cycle.</p>
       </div>
 
       {adding && (
         <div className="uat-form" style={{marginBottom:20}}>
           <div className="form-grid">
+            <div className="form-field"><label>Scope</label><select value={form.mvp} onChange={e=>setForm(f=>({...f,mvp:e.target.value}))}><option>MVP 1</option><option>MVP 2+</option></select></div>
+            <div className="form-field"><label>Priority</label><select value={form.priority} onChange={e=>setForm(f=>({...f,priority:Number(e.target.value)}))}>{[1,2,3,4].map(p=><option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}</select></div>
             <div className="form-field"><label>Persona</label><select value={form.persona} onChange={e=>setForm(f=>({...f,persona:e.target.value}))}>{PERSONAS.map(p=><option key={p} value={p}>{p.replace('_',' ')}</option>)}</select></div>
             <div className="form-field"><label>Platform</label><select value={form.platform} onChange={e=>setForm(f=>({...f,platform:e.target.value}))}>{PLATFORMS.map(p=><option key={p}>{p}</option>)}</select></div>
-            <div className="form-field full"><label>I want to…</label><input value={form.i_want_to} onChange={e=>setForm(f=>({...f,i_want_to:e.target.value}))} placeholder="describe the action or goal" /></div>
+            <div className="form-field full"><label>I want to…</label><input value={form.i_want_to} onChange={e=>setForm(f=>({...f,i_want_to:e.target.value}))} placeholder="describe the goal" /></div>
             <div className="form-field full"><label>So that…</label><input value={form.so_that} onChange={e=>setForm(f=>({...f,so_that:e.target.value}))} placeholder="the benefit or outcome" /></div>
-            <div className="form-field full"><label>Acceptance criteria</label><textarea value={form.acceptance_criteria} onChange={e=>setForm(f=>({...f,acceptance_criteria:e.target.value}))} placeholder="When… then… (one per line)" /></div>
+            <div className="form-field full"><label>Acceptance criteria</label><textarea value={form.acceptance_criteria} onChange={e=>setForm(f=>({...f,acceptance_criteria:e.target.value}))} placeholder="When… then…" /></div>
             <div className="form-field"><label>Developer</label><input value={form.developer} onChange={e=>setForm(f=>({...f,developer:e.target.value}))} placeholder="jon, nhung…" /></div>
-            <div className="form-field"><label>Linear issues (comma separated)</label><input value={form.linear_ids} onChange={e=>setForm(f=>({...f,linear_ids:e.target.value}))} placeholder="REL-5, REL-6" /></div>
+            <div className="form-field"><label>Linked issues (comma separated)</label><input value={form.linear_ids} onChange={e=>setForm(f=>({...f,linear_ids:e.target.value}))} placeholder="REL-5, REL-6" /></div>
           </div>
           <div className="form-actions">
             <button className="btn btn-secondary" onClick={()=>setAdding(false)}>Cancel</button>
@@ -1526,73 +1629,115 @@ function UserStoriesView() {
       )}
 
       {/* Filters */}
-      <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-        <select value={filterPersona} onChange={e=>setFilterPersona(e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:12,padding:'5px 10px',borderRadius:'var(--radius-md)',border:'1px solid var(--border)',background:'var(--bg-card)',color:filterPersona==='all'?'var(--fg3)':'var(--fg1)',cursor:'pointer',outline:'none'}}>
+      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+        {['all','MVP 1','MVP 2+'].map(m=>(
+          <button key={m} className={`filter-chip${filterMvp===m?' on':''}`} onClick={()=>setFilterMvp(m)}>{m==='all'?'All scope':m}</button>
+        ))}
+        <div style={{width:1,height:20,background:'var(--border)',margin:'0 4px'}} />
+        <select value={filterPersona} onChange={e=>setFilterPersona(e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:12,padding:'4px 10px',borderRadius:'var(--radius-md)',border:'1px solid var(--border)',background:'var(--bg-card)',color:filterPersona==='all'?'var(--fg3)':'var(--fg1)',cursor:'pointer',outline:'none'}}>
           <option value="all">All personas</option>{PERSONAS.map(p=><option key={p} value={p}>{p.replace('_',' ')}</option>)}
         </select>
-        <select value={filterPlatform} onChange={e=>setFilterPlatform(e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:12,padding:'5px 10px',borderRadius:'var(--radius-md)',border:'1px solid var(--border)',background:'var(--bg-card)',color:filterPlatform==='all'?'var(--fg3)':'var(--fg1)',cursor:'pointer',outline:'none'}}>
+        <select value={filterPlatform} onChange={e=>setFilterPlatform(e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:12,padding:'4px 10px',borderRadius:'var(--radius-md)',border:'1px solid var(--border)',background:'var(--bg-card)',color:filterPlatform==='all'?'var(--fg3)':'var(--fg1)',cursor:'pointer',outline:'none'}}>
           <option value="all">All platforms</option>{PLATFORMS.map(p=><option key={p} value={p}>{p}</option>)}
         </select>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:12,padding:'5px 10px',borderRadius:'var(--radius-md)',border:'1px solid var(--border)',background:'var(--bg-card)',color:filterStatus==='all'?'var(--fg3)':'var(--fg1)',cursor:'pointer',outline:'none'}}>
+        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:12,padding:'4px 10px',borderRadius:'var(--radius-md)',border:'1px solid var(--border)',background:'var(--bg-card)',color:filterStatus==='all'?'var(--fg3)':'var(--fg1)',cursor:'pointer',outline:'none'}}>
           <option value="all">All statuses</option>{STORY_STATUSES.map(s=><option key={s} value={s}>{s.replace('_',' ')}</option>)}
         </select>
-        {(filterPersona!=='all'||filterPlatform!=='all'||filterStatus!=='all') && <button className="btn btn-ghost btn-sm" onClick={()=>{setFilterPersona('all');setFilterPlatform('all');setFilterStatus('all');}}>Clear</button>}
+        {(filterPersona!=='all'||filterPlatform!=='all'||filterStatus!=='all'||filterMvp!=='all') && <button className="btn btn-ghost btn-sm" onClick={()=>{setFilterPersona('all');setFilterPlatform('all');setFilterStatus('all');setFilterMvp('all');}}>Clear</button>}
+        <span className="mono" style={{marginLeft:'auto'}}>{filtered.length} stories</span>
       </div>
 
       <div style={{display:'flex',flexDirection:'column',gap:1,background:'var(--border)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',overflow:'hidden'}}>
         {filtered.map(s => (
           <div key={s.id}>
-            {/* Row */}
-            <div style={{display:'grid',gridTemplateColumns:'80px 80px 1fr 120px auto',gap:16,alignItems:'center',padding:'12px 20px',background:'var(--bg-card)',cursor:'pointer'}} onClick={()=>setExpanded(e=>e===s.id?null:s.id)}>
-              <span className="mono" style={{fontSize:10}}>{s.ref}</span>
-              <div style={{display:'flex',flexDirection:'column',gap:3}}>
-                <span style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.08em',textTransform:'uppercase',padding:'2px 6px',borderRadius:3,background:`${personaColor[s.persona]}18`,color:personaColor[s.persona]}}>{s.persona.replace('_',' ')}</span>
-                <span style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.08em',textTransform:'uppercase',padding:'2px 6px',borderRadius:3,background:`${platformColor[s.platform]}18`,color:platformColor[s.platform]}}>{s.platform}</span>
-              </div>
+            <div style={{display:'grid',gridTemplateColumns:'72px 60px 1fr auto auto',gap:12,alignItems:'center',padding:'11px 20px',background:'var(--bg-card)',cursor:'pointer',transition:'background 0.1s'}}
+              onMouseEnter={e=>(e.currentTarget.style.background='var(--slate-soft)')}
+              onMouseLeave={e=>(e.currentTarget.style.background='var(--bg-card)')}
+              onClick={()=>setExpanded(e=>e===s.id?null:s.id)}>
+              {/* Ref + MVP badge */}
               <div>
-                <div style={{fontSize:13,fontWeight:500,color:'var(--fg1)'}}>As a <b>{s.persona.replace('_',' ')}</b>, I want to {s.i_want_to}</div>
-                <div style={{fontSize:12,color:'var(--fg3)',marginTop:2}}>So that {s.so_that}</div>
+                <span className="mono" style={{fontSize:10,display:'block'}}>{s.ref}</span>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:8,letterSpacing:'0.08em',textTransform:'uppercase',padding:'1px 4px',borderRadius:2,background:s.mvp==='MVP 1'?'var(--bottle-soft)':'var(--butter-soft)',color:s.mvp==='MVP 1'?'var(--bottle-deep)':'var(--butter-deep)'}}>{s.mvp}</span>
               </div>
-              <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-                {(Array.isArray(s.linear_ids)?s.linear_ids:[]).slice(0,3).map(id=>(
-                  <span key={id} style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.06em',padding:'2px 5px',borderRadius:3,background:'var(--blue-soft)',color:'var(--blue-hover)'}}>{id}</span>
+              {/* Priority */}
+              <span style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.06em',color:PRIORITY_COLORS[s.priority]??'var(--fg3)',textTransform:'uppercase'}}>{PRIORITY_LABELS[s.priority]}</span>
+              {/* Story text */}
+              <div>
+                <span style={{fontSize:13,color:'var(--fg2)'}}>As a <b style={{color:personaColor[s.persona]??'var(--navy)'}}>{s.persona.replace('_',' ')}</b>, I want to </span>
+                <span style={{fontSize:13,fontWeight:500,color:'var(--fg1)'}}>{s.i_want_to}</span>
+                <span style={{fontSize:12,color:'var(--fg3)',display:'block',marginTop:1}}>So that {s.so_that}</span>
+              </div>
+              {/* Linear IDs */}
+              <div style={{display:'flex',gap:3,alignItems:'center'}}>
+                {s.linear_identifier && <span style={{fontFamily:'var(--font-mono)',fontSize:9,padding:'2px 5px',borderRadius:3,background:'var(--bottle-soft)',color:'var(--bottle-deep)'}}>{s.linear_identifier}</span>}
+                {(Array.isArray(s.linear_ids)?s.linear_ids:[]).slice(0,2).map(id=>(
+                  <span key={id} style={{fontFamily:'var(--font-mono)',fontSize:9,padding:'2px 5px',borderRadius:3,background:'var(--blue-soft)',color:'var(--blue-hover)'}}>{id}</span>
                 ))}
-                {(Array.isArray(s.linear_ids)?s.linear_ids:[]).length > 3 && <span style={{fontSize:10,color:'var(--fg3)'}}>+{(Array.isArray(s.linear_ids)?s.linear_ids:[]).length-3}</span>}
+                {(Array.isArray(s.linear_ids)?s.linear_ids:[]).length > 2 && <span style={{fontSize:10,color:'var(--fg3)'}}>+{(Array.isArray(s.linear_ids)?s.linear_ids:[]).length-2}</span>}
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',padding:'4px 8px',borderRadius:3,background:statusColor[s.status]?.[0]??'var(--slate)',color:statusColor[s.status]?.[1]??'var(--fg3)'}}>{s.status.replace('_',' ')}</span>
-                <span style={{color:'var(--fg3)',fontSize:14}}>{expanded===s.id?'▲':'▼'}</span>
-              </div>
+              {/* Status */}
+              <span style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.08em',textTransform:'uppercase',padding:'4px 8px',borderRadius:3,background:statusColor[s.status]?.[0]??'var(--slate)',color:statusColor[s.status]?.[1]??'var(--fg3)',whiteSpace:'nowrap'}}>{s.status.replace('_',' ')}</span>
             </div>
 
-            {/* Expanded */}
             {expanded===s.id && (
-              <div style={{padding:'16px 20px',background:'var(--slate-soft)',borderTop:'1px solid var(--border)'}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:12}}>
+              <div style={{padding:'16px 20px',background:'var(--slate-soft)',borderTop:'1px solid var(--border)'}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 280px',gap:20}}>
+                  {/* Left: criteria */}
                   <div>
                     <div className="mono" style={{marginBottom:6}}>Acceptance criteria</div>
                     <EF value={s.acceptance_criteria||''} onSave={v=>upd(s.id,'acceptance_criteria',v)} multi />
+                    {(Array.isArray(s.linear_ids)?s.linear_ids:[]).length > 0 && (
+                      <div style={{marginTop:12}}>
+                        <div className="mono" style={{marginBottom:6}}>Linked Linear issues</div>
+                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                          {(Array.isArray(s.linear_ids)?s.linear_ids:[]).map(id=>{
+                            const issue = linearIssues.find(i=>i.identifier===id);
+                            return <a key={id} href={issue?.url??'#'} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:10,padding:'3px 7px',borderRadius:3,background:'var(--blue-soft)',color:'var(--blue-hover)',textDecoration:'none'}} title={issue?.title}>{id} {issue ? `— ${issue.title.slice(0,40)}…` : ''}</a>;
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                    <div>
-                      <div className="mono" style={{marginBottom:4}}>Status</div>
-                      <select value={s.status} onChange={e=>upd(s.id,'status',e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:13,padding:'5px 8px',borderRadius:4,border:'1px solid var(--border)',background:'var(--bg-card)',cursor:'pointer',outline:'none'}}>
+                  {/* Right: controls */}
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                    <div className="form-field">
+                      <label>Status</label>
+                      <select value={s.status} onChange={e=>upd(s.id,'status',e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:13,padding:'5px 8px',borderRadius:4,border:'1px solid var(--border)',background:'var(--bg-card)',cursor:'pointer',outline:'none',width:'100%'}}>
                         {STORY_STATUSES.map(st=><option key={st} value={st}>{st.replace('_',' ')}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <div className="mono" style={{marginBottom:4}}>Developer</div>
+                    <div className="form-field">
+                      <label>Priority</label>
+                      <select value={s.priority} onChange={e=>upd(s.id,'priority',Number(e.target.value))} style={{fontFamily:'var(--font-body)',fontSize:13,padding:'5px 8px',borderRadius:4,border:'1px solid var(--border)',background:'var(--bg-card)',cursor:'pointer',outline:'none',width:'100%'}}>
+                        {[1,2,3,4].map(p=><option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-field">
+                      <label>Assign to cycle</label>
+                      <select value={s.cycle_id} onChange={e=>upd(s.id,'cycle_id',e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:13,padding:'5px 8px',borderRadius:4,border:'1px solid var(--border)',background:'var(--bg-card)',cursor:'pointer',outline:'none',width:'100%'}}>
+                        <option value="">No cycle</option>
+                        {cycles.map(c=><option key={c.id} value={c.id}>{c.name??`Cycle ${c.number}`}{!c.completedAt?' ●':''}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-field">
+                      <label>Developer</label>
                       <EF value={s.developer||''} onSave={v=>upd(s.id,'developer',v)} />
                     </div>
-                    <div>
-                      <div className="mono" style={{marginBottom:4}}>Linear issues</div>
-                      <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-                        {(Array.isArray(s.linear_ids)?s.linear_ids:[]).map(id=>{
-                          const issue = linearIssues.find(i=>i.identifier===id);
-                          return <a key={id} href={issue?.url??'#'} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'0.06em',padding:'3px 7px',borderRadius:3,background:'var(--blue-soft)',color:'var(--blue-hover)',textDecoration:'none'}} title={issue?.title}>{id}</a>;
-                        })}
-                      </div>
+                    <div className="form-field">
+                      <label>Scope</label>
+                      <select value={s.mvp} onChange={e=>upd(s.id,'mvp',e.target.value)} style={{fontFamily:'var(--font-body)',fontSize:13,padding:'5px 8px',borderRadius:4,border:'1px solid var(--border)',background:'var(--bg-card)',cursor:'pointer',outline:'none',width:'100%'}}>
+                        <option>MVP 1</option><option>MVP 2+</option>
+                      </select>
                     </div>
+                    {!s.linear_identifier ? (
+                      <button className="btn btn-primary" style={{marginTop:4}} onClick={()=>createInLinear(s)} disabled={creating===s.id}>
+                        {creating===s.id ? 'Creating…' : '+ Create in Linear'}
+                      </button>
+                    ) : (
+                      <div style={{padding:'8px 10px',background:'var(--bottle-soft)',borderRadius:6,fontSize:12,color:'var(--bottle-deep)',textAlign:'center'}}>
+                        ✓ In Linear as <b>{s.linear_identifier}</b>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
