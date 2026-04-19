@@ -2427,12 +2427,23 @@ function RequirementsView() {
 
 interface UATAttachment { id: string; file_name: string; storage_path: string; url: string; linear_issue_id: string; caption: string; }
 
-function UATTestRow({ t, upd, linearIssues }: {
-  t: UATTest;
-  upd: (id: string, f: string, v: string) => void;
-  linearIssues: LinearIssue[];
-}) {
-  const [expanded, setExpanded] = useState(false);
+const UAT_CYCLE_COLORS: Record<string,{bg:string,fg:string}> = {
+  'Cycle 1':{bg:'var(--bottle-soft)',fg:'var(--bottle-deep)'},
+  'Cycle 2':{bg:'var(--blue-soft)',fg:'var(--blue-hover)'},
+  'Cycle 3':{bg:'var(--butter-soft)',fg:'var(--butter-deep)'},
+};
+const UAT_STATUS_PILL: Record<string,{bg:string,fg:string,label:string,bar:string}> = {
+  passed:      {bg:'var(--bottle-soft)',fg:'var(--bottle-deep)',label:'PASS',   bar:'var(--bottle)'},
+  failed:      {bg:'var(--red-soft)',   fg:'var(--red)',        label:'FAIL',   bar:'var(--red)'},
+  in_progress: {bg:'var(--butter-soft)',fg:'var(--butter-deep)',label:'IN PROG',bar:'var(--butter-deep)'},
+  draft:       {bg:'var(--slate)',      fg:'var(--fg3)',        label:'DRAFT',  bar:'var(--border)'},
+  ready:       {bg:'var(--blue-soft)',  fg:'var(--blue-hover)', label:'READY',  bar:'var(--blue-hover)'},
+  blocked:     {bg:'var(--red-soft)',   fg:'var(--red)',        label:'BLOCKED',bar:'var(--red)'},
+};
+const UAT_TESTER_COLORS = ['var(--navy)','var(--bottle-deep)','var(--red)','var(--butter-deep)'];
+function uatTesterColor(name: string) { return UAT_TESTER_COLORS[(name.charCodeAt(0) || 0) % UAT_TESTER_COLORS.length]; }
+
+function UATDetailPanel({ t, upd, linearIssues }: { t: UATTest; upd: (id:string,f:string,v:string)=>void; linearIssues: LinearIssue[] }) {
   const [attachments, setAttachments] = useState<UATAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [attachLinear, setAttachLinear] = useState('');
@@ -2442,11 +2453,7 @@ function UATTestRow({ t, upd, linearIssues }: {
 
   const loadAttachments = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from('uat_attachments')
-      .select('*')
-      .eq('uat_test_id', t.id)
-      .order('created_at', { ascending: false });
+    const { data } = await (supabase as any).from('uat_attachments').select('*').eq('uat_test_id', t.id).order('created_at', { ascending: false });
     if (!data) return;
     const withUrls = await Promise.all(data.map(async (a: { id: string; file_name: string; storage_path: string; linear_issue_id: string; caption: string }) => {
       const { data: urlData } = await supabase.storage.from('uat-attachments').createSignedUrl(a.storage_path, 3600);
@@ -2455,10 +2462,7 @@ function UATTestRow({ t, upd, linearIssues }: {
     setAttachments(withUrls);
   };
 
-  const handleExpand = () => {
-    if (!expanded) loadAttachments();
-    setExpanded(e => !e);
-  };
+  useEffect(() => { loadAttachments(); }, [t.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2468,17 +2472,8 @@ function UATTestRow({ t, upd, linearIssues }: {
     const { error } = await supabase.storage.from('uat-attachments').upload(path, file);
     if (!error) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from('uat_attachments').insert({
-        uat_test_id: t.id,
-        linear_issue_id: attachLinear || null,
-        storage_path: path,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        caption: caption || null,
-      });
-      setCaption('');
-      setAttachLinear('');
+      await (supabase as any).from('uat_attachments').insert({ uat_test_id: t.id, linear_issue_id: attachLinear || null, storage_path: path, file_name: file.name, file_size: file.size, mime_type: file.type, caption: caption || null });
+      setCaption(''); setAttachLinear('');
       await loadAttachments();
     }
     setUploading(false);
@@ -2492,44 +2487,96 @@ function UATTestRow({ t, upd, linearIssues }: {
     setAttachments(as => as.filter(a => a.id !== id));
   };
 
-  const platformIcon: Record<string,string> = { ios:'📱', android:'🤖', web:'🌐', all:'·' };
-  const cycleColors: Record<string,{bg:string,fg:string}> = {
-    'Cycle 1':{bg:'var(--bottle-soft)',fg:'var(--bottle-deep)'},
-    'Cycle 2':{bg:'var(--blue-soft)',fg:'var(--blue-hover)'},
-    'Cycle 3':{bg:'var(--butter-soft)',fg:'var(--butter-deep)'},
-  };
-  const cc = t.cycle ? (cycleColors[t.cycle] ?? {bg:'var(--slate)',fg:'var(--fg3)'}) : {bg:'var(--slate)',fg:'var(--fg3)'};
-  const statusPill: Record<string,{bg:string,fg:string,label:string}> = {
-    passed:      {bg:'var(--bottle-soft)',fg:'var(--bottle-deep)',label:'PASS'},
-    failed:      {bg:'var(--red-soft)',fg:'var(--red)',label:'FAIL'},
-    in_progress: {bg:'var(--butter-soft)',fg:'var(--butter-deep)',label:'IN PROG'},
-    draft:       {bg:'var(--slate)',fg:'var(--fg3)',label:'DRAFT'},
-    ready:       {bg:'var(--blue-soft)',fg:'var(--blue-hover)',label:'READY'},
-    blocked:     {bg:'var(--red-soft)',fg:'var(--red)',label:'BLOCKED'},
-  };
-  const sp = statusPill[t.status] ?? statusPill['draft']!;
   const initials = t.tester ? t.tester.slice(0,2).toUpperCase() : '?';
-  const testerColors = ['var(--navy)','var(--bottle-deep)','var(--red)','var(--butter-deep)'];
-  const testerColor = testerColors[t.tester.charCodeAt(0) % testerColors.length];
+  const testerColor = uatTesterColor(t.tester);
 
   return (
+    <div style={{ padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 280px', gap:24 }}>
+      {/* LEFT */}
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {(['description','expected_result','actual_result','notes'] as const).map(field => {
+          const labels: Record<string,string> = { description:'Description', expected_result:'Expected result', actual_result:'Actual result', notes:'Notes' };
+          const val = (t[field] ?? '') as string;
+          return (
+            <div key={field} style={{ background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', padding:'10px 14px' }}>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:6 }}>{labels[field]}</div>
+              {val.trim()
+                ? <div style={{ fontSize:13, color:'var(--fg1)', lineHeight:1.6 }}><EF value={val} onSave={v => upd(t.id, field, v)} multi /></div>
+                : <button onClick={e => { e.stopPropagation(); upd(t.id, field, ' '); }} style={{ background:'none', border:'1px dashed var(--border)', borderRadius:'var(--radius-sm)', padding:'6px 12px', color:'var(--fg3)', fontSize:12, cursor:'pointer', width:'100%', textAlign:'left' }}>+ Add {(labels[field] ?? field).toLowerCase()}…</button>
+              }
+            </div>
+          );
+        })}
+        <div style={{ background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', padding:'10px 14px' }}>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:10 }}>Screenshots</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:8, alignItems:'end', marginBottom:12 }}>
+            <div className="form-field" style={{ margin:0 }}><label>Caption (optional)</label><input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. iOS 18 voice drop bug" /></div>
+            <div className="form-field" style={{ margin:0 }}><label>Link to Linear issue</label><LinearSearch value={attachLinear} issues={linearIssues} onChange={(_id, identifier) => setAttachLinear(identifier)} placeholder="Search issues…" /></div>
+            <label style={{ cursor:'pointer' }}>
+              <input ref={fileRef} type="file" accept="image/*,video/mp4" style={{ display:'none' }} onChange={upload} disabled={uploading} />
+              <span className={`btn btn-primary btn-sm${uploading?' disabled':''}`} style={{ display:'inline-flex', alignItems:'center', gap:6, opacity: uploading ? 0.6 : 1 }}>{uploading ? 'Uploading…' : <><Ic n="plus" size={12} />Choose file</>}</span>
+            </label>
+          </div>
+          {attachments.length === 0
+            ? <div style={{ fontSize:12, color:'var(--fg3)', fontStyle:'italic' }}>No screenshots yet.</div>
+            : <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:8 }}>
+                {attachments.map(a => (
+                  <div key={a.id} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', overflow:'hidden' }}>
+                    <img src={a.url} alt={a.caption || a.file_name} style={{ width:'100%', height:100, objectFit:'cover', display:'block' }} />
+                    <div style={{ padding:'6px 8px' }}>
+                      {a.caption && <div style={{ fontSize:11, fontWeight:500, marginBottom:2 }}>{a.caption}</div>}
+                      <div style={{ fontSize:10, color:'var(--fg3)', display:'flex', justifyContent:'space-between' }}>
+                        <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ color:'var(--navy)' }}>View</a>
+                        <button style={{ background:'none', border:'none', color:'var(--red)', fontSize:10, cursor:'pointer' }} onClick={() => deleteAttachment(a.id, a.storage_path)}>Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      </div>
+      {/* RIGHT */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <div style={{ background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', padding:'12px 14px', display:'flex', flexDirection:'column', gap:12 }}>
+          {[
+            { label:'Requirement', content: (<select value={t.req_ref} onChange={e => upd(t.id,'req_ref',e.target.value)} style={{ fontSize:13, background:'transparent', border:'none', color:'var(--navy)', cursor:'pointer', padding:0, width:'100%', fontFamily:'var(--font-mono)', fontWeight:600 }}><option value="">— none —</option>{REQS_SEED.map(r => <option key={r.ref} value={r.ref}>{r.ref} — {r.title}</option>)}</select>) },
+            { label:'Linear', content: (<LinearSearch value={t.linear_id} issues={linearIssues} onChange={(_id, identifier) => upd(t.id,'linear_id',identifier)} placeholder="Search issues…" />) },
+            { label:'Tester', content: (<div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:22, height:22, borderRadius:'50%', background:testerColor, color:'#fff', fontSize:9, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{initials}</div><EF value={t.tester} onSave={v => upd(t.id,'tester',v)} /></div>) },
+            { label:'Cycle', content: (<EF value={t.cycle ?? ''} onSave={v => upd(t.id,'cycle',v)} />) },
+            { label:'Platform', content: (<select value={t.platform ?? 'all'} onChange={e => upd(t.id,'platform',e.target.value)} style={{ fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0, width:'100%' }}>{['all','ios','android','web'].map(p => <option key={p} value={p}>{p==='ios'?'iPhone':p==='all'?'All':p==='web'?'Web App':'Android'}</option>)}</select>) },
+            { label:'Version', content: (<EF value={t.version ?? ''} onSave={v => upd(t.id,'version',v)} />) },
+            { label:'Date', content: (<EF value={t.date ?? ''} onSave={v => upd(t.id,'date',v)} />) },
+            { label:'Status', content: (<select value={t.status} onChange={e => upd(t.id,'status',e.target.value)} style={{ fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0, width:'100%' }}>{['draft','ready','in_progress','passed','failed','blocked'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}</select>) },
+          ].map(({ label, content }) => (
+            <div key={label}>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:4 }}>{label}</div>
+              <div style={{ fontSize:13 }}>{content}</div>
+            </div>
+          ))}
+        </div>
+        <LinkedPanel reqRef={t.req_ref || undefined} linearId={t.linear_id || undefined} />
+      </div>
+    </div>
+  );
+}
+
+function UATTestRow({ t, upd, linearIssues }: { t: UATTest; upd: (id:string,f:string,v:string)=>void; linearIssues: LinearIssue[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const cc = t.cycle ? (UAT_CYCLE_COLORS[t.cycle] ?? {bg:'var(--slate)',fg:'var(--fg3)'}) : {bg:'var(--slate)',fg:'var(--fg3)'};
+  const sp = UAT_STATUS_PILL[t.status] ?? UAT_STATUS_PILL['draft']!;
+  const initials = t.tester ? t.tester.slice(0,2).toUpperCase() : '?';
+  const testerColor = uatTesterColor(t.tester);
+  return (
     <>
-      <tr style={{ cursor:'pointer' }} onClick={handleExpand}>
+      <tr style={{ cursor:'pointer' }} onClick={() => setExpanded(e => !e)}>
         <td><span className="mono" style={{ fontSize:11 }}>{t.ref}</span></td>
-        <td>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.06em', padding:'3px 7px', borderRadius:3, background:cc.bg, color:cc.fg, whiteSpace:'nowrap', fontWeight:600 }}>
-            {t.cycle ?? '—'}
-          </span>
-        </td>
+        <td><span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.06em', padding:'3px 7px', borderRadius:3, background:cc.bg, color:cc.fg, whiteSpace:'nowrap', fontWeight:600 }}>{t.cycle ?? '—'}</span></td>
         <td onClick={e => e.stopPropagation()}>
           <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-            <span style={{ fontSize:13 }}>{platformIcon[t.platform ?? 'all']}</span>
-            <select value={t.platform ?? 'all'} onChange={e => upd(t.id,'platform',e.target.value)}
-              style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.06em', background:'transparent', border:'none', cursor:'pointer', padding:0, color:'var(--fg2)' }}>
-              <option value="all">All</option>
-              <option value="ios">iPhone</option>
-              <option value="android">Android</option>
-              <option value="web">Web App</option>
+            <span style={{ fontSize:13 }}>{ {ios:'📱',android:'🤖',web:'🌐',all:'·'}[t.platform??'all'] }</span>
+            <select value={t.platform ?? 'all'} onChange={e => upd(t.id,'platform',e.target.value)} style={{ fontFamily:'var(--font-mono)', fontSize:10, background:'transparent', border:'none', cursor:'pointer', padding:0, color:'var(--fg2)' }}>
+              <option value="all">All</option><option value="ios">iPhone</option><option value="android">Android</option><option value="web">Web App</option>
             </select>
           </div>
         </td>
@@ -2552,117 +2599,58 @@ function UATTestRow({ t, upd, linearIssues }: {
             </select>
           </div>
         </td>
-        <td><span style={{ fontSize:11, color:'var(--fg3)' }}>{expanded ? '▲' : '▼'}{attachments.length > 0 ? ` ${attachments.length}` : ''}</span></td>
+        <td><span style={{ fontSize:11, color:'var(--fg3)' }}>{expanded ? '▲' : '▼'}</span></td>
       </tr>
       {expanded && (
-        <tr>
-          <td colSpan={8} style={{ padding:0, background:'var(--slate-soft)', borderBottom:'2px solid var(--border)' }}>
-            <div style={{ padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 280px', gap:24 }}>
-
-              {/* LEFT — test case detail */}
-              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                {(['description','expected_result','actual_result','notes'] as const).map(field => {
-                  const labels: Record<string,string> = { description:'Description', expected_result:'Expected result', actual_result:'Actual result', notes:'Notes' };
-                  const val = (t[field] ?? '') as string;
-                  return (
-                    <div key={field} style={{ background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', padding:'10px 14px' }}>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:6 }}>{labels[field]}</div>
-                      {val.trim()
-                        ? <div style={{ fontSize:13, color:'var(--fg1)', lineHeight:1.6 }}><EF value={val} onSave={v => upd(t.id, field, v)} multi /></div>
-                        : <button onClick={e => { e.stopPropagation(); upd(t.id, field, ' '); }} style={{ background:'none', border:'1px dashed var(--border)', borderRadius:'var(--radius-sm)', padding:'6px 12px', color:'var(--fg3)', fontSize:12, cursor:'pointer', width:'100%', textAlign:'left' }}>+ Add {(labels[field] ?? field).toLowerCase()}…</button>
-                      }
-                    </div>
-                  );
-                })}
-
-                {/* Screenshots */}
-                <div style={{ background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', padding:'10px 14px' }}>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:10 }}>Screenshots</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:8, alignItems:'end', marginBottom:12 }}>
-                    <div className="form-field" style={{ margin:0 }}>
-                      <label>Caption (optional)</label>
-                      <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. iOS 18 voice drop bug" />
-                    </div>
-                    <div className="form-field" style={{ margin:0 }}>
-                      <label>Link to Linear issue</label>
-                      <LinearSearch value={attachLinear} issues={linearIssues} onChange={(_id, identifier) => setAttachLinear(identifier)} placeholder="Search issues…" />
-                    </div>
-                    <label style={{ cursor:'pointer' }}>
-                      <input ref={fileRef} type="file" accept="image/*,video/mp4" style={{ display:'none' }} onChange={upload} disabled={uploading} />
-                      <span className={`btn btn-primary btn-sm${uploading?' disabled':''}`} style={{ display:'inline-flex', alignItems:'center', gap:6, opacity: uploading ? 0.6 : 1 }}>
-                        {uploading ? 'Uploading…' : <><Ic n="plus" size={12} />Choose file</>}
-                      </span>
-                    </label>
-                  </div>
-                  {attachments.length === 0
-                    ? <div style={{ fontSize:12, color:'var(--fg3)', fontStyle:'italic' }}>No screenshots yet.</div>
-                    : <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:8 }}>
-                        {attachments.map(a => (
-                          <div key={a.id} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', overflow:'hidden' }}>
-                            <img src={a.url} alt={a.caption || a.file_name} style={{ width:'100%', height:100, objectFit:'cover', display:'block' }} />
-                            <div style={{ padding:'6px 8px' }}>
-                              {a.caption && <div style={{ fontSize:11, fontWeight:500, marginBottom:2 }}>{a.caption}</div>}
-                              <div style={{ fontSize:10, color:'var(--fg3)', display:'flex', justifyContent:'space-between' }}>
-                                <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ color:'var(--navy)' }}>View</a>
-                                <button style={{ background:'none', border:'none', color:'var(--red)', fontSize:10, cursor:'pointer' }} onClick={() => deleteAttachment(a.id, a.storage_path)}>Delete</button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                  }
-                </div>
-              </div>
-
-              {/* RIGHT — metadata */}
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <div style={{ background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', padding:'12px 14px', display:'flex', flexDirection:'column', gap:12 }}>
-                  {[
-                    { label:'Requirement', content: (
-                      <select value={t.req_ref} onChange={e => upd(t.id,'req_ref',e.target.value)} style={{ fontSize:13, background:'transparent', border:'none', color:'var(--navy)', cursor:'pointer', padding:0, width:'100%', fontFamily:'var(--font-mono)', fontWeight:600 }}>
-                        <option value="">— none —</option>
-                        {REQS_SEED.map(r => <option key={r.ref} value={r.ref}>{r.ref} — {r.title}</option>)}
-                      </select>
-                    )},
-                    { label:'Linear', content: (
-                      <LinearSearch value={t.linear_id} issues={linearIssues} onChange={(_id, identifier) => upd(t.id,'linear_id',identifier)} placeholder="Search issues…" />
-                    )},
-                    { label:'Tester', content: (
-                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                        <div style={{ width:22, height:22, borderRadius:'50%', background:testerColor, color:'#fff', fontSize:9, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{initials}</div>
-                        <EF value={t.tester} onSave={v => upd(t.id,'tester',v)} />
-                      </div>
-                    )},
-                    { label:'Cycle', content: (
-                      <EF value={t.cycle ?? ''} onSave={v => upd(t.id,'cycle',v)} />
-                    )},
-                    { label:'Platform', content: (
-                      <select value={t.platform ?? 'all'} onChange={e => upd(t.id,'platform',e.target.value)} style={{ fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0, width:'100%' }}>
-                        {['all','ios','android','web'].map(p => <option key={p}>{p === 'ios' ? 'iPhone' : p === 'all' ? 'All' : p === 'web' ? 'Web App' : 'Android'}</option>)}
-                      </select>
-                    )},
-                    { label:'Version', content: <EF value={t.version ?? ''} onSave={v => upd(t.id,'version',v)} /> },
-                    { label:'Date', content: <EF value={t.date ?? ''} onSave={v => upd(t.id,'date',v)} /> },
-                    { label:'Status', content: (
-                      <select value={t.status} onChange={e => upd(t.id,'status',e.target.value)} style={{ fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0, width:'100%' }}>
-                        {['draft','ready','in_progress','passed','failed','blocked'].map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-                      </select>
-                    )},
-                  ].map(({ label, content }) => (
-                    <div key={label}>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:4 }}>{label}</div>
-                      <div style={{ fontSize:13 }}>{content}</div>
-                    </div>
-                  ))}
-                </div>
-                <LinkedPanel reqRef={t.req_ref || undefined} linearId={t.linear_id || undefined} />
-              </div>
-
-            </div>
-          </td>
-        </tr>
+        <tr><td colSpan={8} style={{ padding:0, background:'var(--slate-soft)', borderBottom:'2px solid var(--border)' }}>
+          <UATDetailPanel t={t} upd={upd} linearIssues={linearIssues} />
+        </td></tr>
       )}
     </>
+  );
+}
+
+function UATCard({ t, selected, onSelect, upd, linearIssues }: { t: UATTest; selected: boolean; onSelect: () => void; upd: (id:string,f:string,v:string)=>void; linearIssues: LinearIssue[] }) {
+  const cc = t.cycle ? (UAT_CYCLE_COLORS[t.cycle] ?? {bg:'var(--slate)',fg:'var(--fg3)'}) : {bg:'var(--slate)',fg:'var(--fg3)'};
+  const sp = UAT_STATUS_PILL[t.status] ?? UAT_STATUS_PILL['draft']!;
+  const initials = t.tester ? t.tester.slice(0,2).toUpperCase() : '?';
+  const testerColor = uatTesterColor(t.tester);
+  const preview = t.description || t.notes || '';
+  return (
+    <div onClick={onSelect} style={{
+      background:'var(--bg-card)', border:`1px solid ${selected ? 'var(--navy)' : 'var(--border)'}`,
+      borderRadius:'var(--radius-lg)', overflow:'hidden', cursor:'pointer',
+      boxShadow: selected ? '0 0 0 2px var(--navy-soft)' : '0 1px 3px rgba(0,0,0,0.06)',
+      transition:'border-color 0.15s, box-shadow 0.15s',
+    }}>
+      {/* Status bar */}
+      <div style={{ height:3, background:sp.bar }} />
+      <div style={{ padding:'14px 16px' }}>
+        {/* Top row */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+          <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--fg3)' }}>{t.ref}</span>
+            {t.cycle && <span style={{ fontFamily:'var(--font-mono)', fontSize:9, padding:'2px 6px', borderRadius:2, background:cc.bg, color:cc.fg, fontWeight:600 }}>{t.cycle}</span>}
+          </div>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, padding:'3px 7px', borderRadius:3, background:sp.bg, color:sp.fg, flexShrink:0 }}>{sp.label}</span>
+        </div>
+        {/* Title */}
+        <div style={{ fontWeight:600, fontSize:13, lineHeight:1.4, marginBottom:8, color:'var(--fg1)' }}>{t.title}</div>
+        {/* Preview */}
+        {preview && <div style={{ fontSize:12, color:'var(--fg3)', lineHeight:1.5, marginBottom:12, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{preview}</div>}
+        {/* Footer */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'auto', paddingTop:10, borderTop:'1px solid var(--border)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <div style={{ width:22, height:22, borderRadius:'50%', background:testerColor, color:'#fff', fontSize:9, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>{initials}</div>
+            <span style={{ fontSize:12, color:'var(--fg2)' }}>{t.tester || '—'}</span>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            {t.platform && t.platform !== 'all' && <span style={{ fontSize:13 }}>{ {ios:'📱',android:'🤖',web:'🌐'}[t.platform] ?? '' }</span>}
+            {t.version && <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--fg3)' }}>{t.version}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2718,6 +2706,8 @@ function UATView() {
   };
 
   const [cycleFilter, setCycleFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'list'|'card'>('list');
+  const [expandedCardId, setExpandedCardId] = useState<string|null>(null);
   const uatCycles = [...new Set(tests.map(t => t.cycle).filter(Boolean))].sort() as string[];
   const filteredTests = cycleFilter === 'all' ? tests : tests.filter(t => t.cycle === cycleFilter);
   const summary = { passed: filteredTests.filter(t=>t.status==='passed').length, failed: filteredTests.filter(t=>t.status==='failed').length, in_progress: filteredTests.filter(t=>t.status==='in_progress').length, draft: filteredTests.filter(t=>t.status==='draft'||t.status==='ready').length };
@@ -2807,25 +2797,54 @@ function UATView() {
             </button>
           ))}
         </div>
-        <div style={{ display:'flex', gap:8, paddingBottom:8 }}>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', color:'var(--fg3)', padding:'4px 10px', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', display:'flex', alignItems:'center', gap:4 }}>
-            ⊟ FILTER
-          </span>
+        <div style={{ display:'flex', gap:6, paddingBottom:8, alignItems:'center' }}>
+          <button onClick={() => setViewMode('list')} title="List view" style={{ background: viewMode==='list' ? 'var(--slate)' : 'none', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'4px 8px', cursor:'pointer', fontSize:14, color: viewMode==='list' ? 'var(--fg1)' : 'var(--fg3)', lineHeight:1 }}>☰</button>
+          <button onClick={() => setViewMode('card')} title="Card view" style={{ background: viewMode==='card' ? 'var(--slate)' : 'none', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'4px 8px', cursor:'pointer', fontSize:14, color: viewMode==='card' ? 'var(--fg1)' : 'var(--fg3)', lineHeight:1 }}>⊞</button>
         </div>
       </div>
 
-      <div className="data-card">
-        {loading && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>Loading…</div>}
-        {!loading && filteredTests.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>{tests.length === 0 ? 'No UAT tests yet. Add your first above.' : 'No tests in this cycle.'}</div>}
-        {!loading && filteredTests.length > 0 && (
-          <table className="data-table">
-            <thead><tr><th>REF</th><th>CYCLE</th><th>PLATFORM</th><th>VERSION</th><th>TEST</th><th>TESTER</th><th>STATUS</th><th></th></tr></thead>
-            <tbody>
-              {filteredTests.map(t => <UATTestRow key={t.id} t={t} upd={upd} linearIssues={linearIssues} />)}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {viewMode === 'list' ? (
+        <div className="data-card">
+          {loading && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>Loading…</div>}
+          {!loading && filteredTests.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>{tests.length === 0 ? 'No UAT tests yet. Add your first above.' : 'No tests in this cycle.'}</div>}
+          {!loading && filteredTests.length > 0 && (
+            <table className="data-table">
+              <thead><tr><th>REF</th><th>CYCLE</th><th>PLATFORM</th><th>VERSION</th><th>TEST</th><th>TESTER</th><th>STATUS</th><th></th></tr></thead>
+              <tbody>
+                {filteredTests.map(t => <UATTestRow key={t.id} t={t} upd={upd} linearIssues={linearIssues} />)}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+        <>
+          {loading && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>Loading…</div>}
+          {!loading && filteredTests.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>{tests.length === 0 ? 'No UAT tests yet. Add your first above.' : 'No tests in this cycle.'}</div>}
+          {!loading && filteredTests.length > 0 && (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:16, marginTop:16 }}>
+              {filteredTests.map(t => (
+                <UATCard key={t.id} t={t} selected={expandedCardId === t.id} onSelect={() => setExpandedCardId(id => id === t.id ? null : t.id)} upd={upd} linearIssues={linearIssues} />
+              ))}
+            </div>
+          )}
+          {expandedCardId && (() => {
+            const sel = filteredTests.find(t => t.id === expandedCardId);
+            if (!sel) return null;
+            return (
+              <div className="data-card" style={{ marginTop:16 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 20px', borderBottom:'1px solid var(--border)' }}>
+                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--fg3)' }}>{sel.ref}</span>
+                    <span style={{ fontWeight:600, fontSize:14, color:'var(--fg1)' }}>{sel.title}</span>
+                  </div>
+                  <button onClick={() => setExpandedCardId(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:18, color:'var(--fg3)', lineHeight:1 }}>×</button>
+                </div>
+                <UATDetailPanel t={sel} upd={upd} linearIssues={linearIssues} />
+              </div>
+            );
+          })()}
+        </>
+      )}
     </div>
   );
 }
