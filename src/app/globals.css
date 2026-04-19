@@ -311,11 +311,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 }
 .hub-content.no-sidebar { margin-left: 0; }
 
-.hub-page {
-  max-width: 1100px;
-  padding: 48px 56px 80px;
-  min-height: calc(100vh - var(--nav-h));
-}
+.hub-page,
 .hub-page-wide {
   padding: 40px 48px 80px;
   min-height: calc(100vh - var(--nav-h));
@@ -899,11 +895,12 @@ body.theme-dark .seg button.on { background: var(--slate-deep); }
 @media (max-width: 900px) {
   .hub-sidebar { display: none; }
   .hub-content { margin-left: 0; }
-  .hub-page { padding: 32px 24px 60px; }
-  .hub-page-wide { padding: 32px 24px 60px; }
-  .landing-page { padding: 32px 24px 60px; }
+  .hub-page, .hub-page-wide { padding: 24px 16px 60px; }
+  .landing-page { padding: 32px 20px 60px; }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
   .section-cards { grid-template-columns: 1fr; }
   .contact-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid { grid-template-columns: 1fr; }
+  .data-table { font-size: 12px; }
+  .data-table th, .data-table td { padding: 8px 10px; }
 }
