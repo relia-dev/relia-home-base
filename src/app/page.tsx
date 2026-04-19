@@ -166,7 +166,7 @@ const ISSUES_SEED = [
   { id:'REL-120', title:'Push notification not firing on quote accept', status:'block', prio:'urgent',who:'M', project:'Backend' },
 ];
 const REQS_SEED: { ref: string; type: string; category: string; priority: string; status: string; title: string; linear_id: string }[] = [];
-const UAT_SEED: { id: string; ref: string; req_ref: string; title: string; status: string; tester: string; date: string; linear_id: string; notes: string }[] = [];
+const UAT_SEED: { id: string; ref: string; req_ref: string; title: string; status: string; tester: string; date: string; linear_id: string; notes: string; platform: string; version: string }[] = [];
 
 // ── Pill component ────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string,string> = { todo:'p-todo', prog:'p-prog', review:'p-review', done:'p-done', block:'p-block', draft:'p-draft', active:'p-active', prospect:'p-prospect', passed:'p-passed', failed:'p-failed', in_progress:'p-prog', must_have:'p-must', should_have:'p-should', could_have:'p-could', wont_have:'p-wont', implemented:'p-done', approved:'p-review', closed_won:'p-done', trial:'p-review', qualified:'p-prog' };
@@ -1517,7 +1517,17 @@ function UATTestRow({ t, upd, linearIssues }: {
     <>
       <tr style={{ cursor:'pointer' }} onClick={handleExpand}>
         <td><span className="mono">{t.ref}</span></td>
-        <td><span className="mono" style={{ color:'var(--fg3)' }}>{t.req_ref}</span></td>
+        <td onClick={e => e.stopPropagation()}>
+          <select value={t.platform ?? 'all'} onChange={e => upd(t.id,'platform',e.target.value)}
+            style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.06em', background:'transparent', border:'none', cursor:'pointer', padding:0,
+              color: t.platform==='ios'?'var(--blue-hover)':t.platform==='android'?'var(--bottle-deep)':t.platform==='web'?'var(--butter-deep)':'var(--fg3)' }}>
+            <option value="all">All</option>
+            <option value="ios">iPhone</option>
+            <option value="android">Android</option>
+            <option value="web">Web</option>
+          </select>
+        </td>
+        <td onClick={e => e.stopPropagation()}><EF value={t.version ?? ''} onSave={v => upd(t.id,'version',v)} /></td>
         <td className="fw600"><EF value={t.title} onSave={v => upd(t.id,'title',v)} /></td>
         <td>{t.linear_id ? <span className="mono" style={{ color:'var(--navy)' }}>{t.linear_id}</span> : <span style={{ color:'var(--fg3)', fontSize:12 }}>—</span>}</td>
         <td><EF value={t.tester} onSave={v => upd(t.id,'tester',v)} /></td>
@@ -1588,7 +1598,7 @@ function UATTestRow({ t, upd, linearIssues }: {
 function UATView() {
   const [tests, setTests] = useState(UAT_SEED);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ title:'', req_ref:'', tester:'', linear_id:'', notes:'' });
+  const [form, setForm] = useState({ title:'', req_ref:'', tester:'', linear_id:'', notes:'', platform:'all', version:'' });
   const [linearIssues, setLinearIssues] = useState<LinearIssue[]>([]);
   const upd = (id: string, f: string, v: string) => setTests(ts => ts.map(t => t.id === id ? {...t, [f]: v} : t));
 
@@ -1605,7 +1615,7 @@ function UATView() {
   const addTest = () => {
     const nextRef = `UAT-${String(tests.length + 1).padStart(3,'0')}`;
     setTests(ts => [...ts, { id: String(Date.now()), ref: nextRef, status: 'draft', date: new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short'}), ...form }]);
-    setForm({ title:'', req_ref:'', tester:'', linear_id:'', notes:'' });
+    setForm({ title:'', req_ref:'', tester:'', linear_id:'', notes:'', platform:'all', version:'' });
     setAdding(false);
   };
 
@@ -1629,6 +1639,15 @@ function UATView() {
           <h4>New UAT test</h4>
           <div className="form-grid">
             <div className="form-field full"><label>Title</label><input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="What are you testing?" /></div>
+            <div className="form-field"><label>Platform</label>
+              <select value={form.platform} onChange={e => setForm(f => ({...f, platform: e.target.value}))}>
+                <option value="all">All platforms</option>
+                <option value="ios">iPhone (iOS)</option>
+                <option value="android">Android</option>
+                <option value="web">Web</option>
+              </select>
+            </div>
+            <div className="form-field"><label>Release version</label><input value={form.version} onChange={e => setForm(f => ({...f, version: e.target.value}))} placeholder="v0.9.0" /></div>
             <div className="form-field"><label>Requirement ref</label><select value={form.req_ref} onChange={e => setForm(f => ({...f, req_ref: e.target.value}))}><option value="">None</option>{REQS_SEED.map(r => <option key={r.ref} value={r.ref}>{r.ref} — {r.title}</option>)}</select></div>
             <div className="form-field"><label>Linear issue</label><select value={form.linear_id} onChange={e => setForm(f => ({...f, linear_id: e.target.value}))}><option value="">None</option>{linearIssues.map(i => <option key={i.id} value={i.identifier}>{i.identifier} — {i.title}</option>)}</select></div>
             <div className="form-field"><label>Tester</label><input value={form.tester} onChange={e => setForm(f => ({...f, tester: e.target.value}))} placeholder="Name" /></div>
@@ -1644,7 +1663,7 @@ function UATView() {
         {tests.length === 0 && !adding && <div style={{ padding:'32px 20px', color:'var(--fg3)', fontSize:13, textAlign:'center' }}>No UAT tests yet. Add your first above.</div>}
         {tests.length > 0 && (
           <table className="data-table">
-            <thead><tr><th>Ref</th><th>Requirement</th><th>Test</th><th>Linear issue</th><th>Tester</th><th>Status</th><th>Images</th></tr></thead>
+            <thead><tr><th>Ref</th><th>Platform</th><th>Version</th><th>Test</th><th>Linear</th><th>Tester</th><th>Status</th><th>Images</th></tr></thead>
             <tbody>
               {tests.map(t => <UATTestRow key={t.id} t={t} upd={upd} linearIssues={linearIssues} />)}
             </tbody>
