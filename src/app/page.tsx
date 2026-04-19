@@ -2287,7 +2287,7 @@ function RequirementsView() {
   };
 
   return (
-    <div className="hub-page">
+    <div className="hub-page-wide">
       <div className="breadcrumb"><span>Dev</span><span className="sep">·</span><b>Requirements</b></div>
       <div className="section-head">
         <h2>Requirements</h2>
@@ -2359,51 +2359,52 @@ function RequirementsView() {
       </div>
 
       <div className="data-card">
+        <div className="data-card-scroll">
         <table className="data-table">
           <thead><tr><th>Ref</th><th>Phase</th><th>Category</th><th>Title</th><th>Platform</th><th>Developer</th><th>Priority</th><th>Status</th><th>Linear</th><th></th></tr></thead>
           <tbody>
             {shown.map(r => (
               <>
               <tr key={r.ref} style={{ cursor:'pointer' }} onClick={() => setExpanded(e => e===r.ref ? null : r.ref)}>
-                <td><span className="mono">{r.ref}</span></td>
+                <td><span className="mono" style={{ fontSize:12 }}>{r.ref}</span></td>
                 <td>
                   <select value={(r as Req).phase ?? 'MVP 1'} onChange={e => upd(r.ref,'phase',e.target.value)}
-                    style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.06em', background:'transparent', border:'none', cursor:'pointer', padding:0, fontWeight:600,
+                    style={{ fontFamily:'var(--font-mono)', fontSize:12, letterSpacing:'0.04em', background:'transparent', border:'none', cursor:'pointer', padding:0, fontWeight:600,
                       color:(r as Req).phase==='MVP 1'?'var(--bottle-deep)':(r as Req).phase==='MVP 2'?'var(--navy)':'var(--fg3)' }}>
                     {phases.map(p=><option key={p}>{p}</option>)}
                   </select>
                 </td>
                 <td>
-                  <select value={r.category} onChange={e => upd(r.ref,'category',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:12, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0, width:'100%' }}>
+                  <select value={r.category} onChange={e => upd(r.ref,'category',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0, width:'100%' }}>
                     {['Voice Capture','Quoting','Follow-up','Onboarding','Materials','Performance','Security','Availability','Other'].map(c => <option key={c} value={c}>{c}</option>)}
                     {!['Voice Capture','Quoting','Follow-up','Onboarding','Materials','Performance','Security','Availability','Other'].includes(r.category) && <option value={r.category}>{r.category}</option>}
                   </select>
                 </td>
                 <td className="fw600"><EF value={r.title} onSave={v => upd(r.ref,'title',v)} /></td>
                 <td>
-                  <select value={(r as { platform?: string }).platform ?? 'all'} onChange={e => upd(r.ref,'platform',e.target.value)} style={{ fontFamily:'var(--font-mono)', fontSize:10, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
+                  <select value={(r as { platform?: string }).platform ?? 'all'} onChange={e => upd(r.ref,'platform',e.target.value)} style={{ fontFamily:'var(--font-mono)', fontSize:12, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
                     {['all','ios','android','web','backend'].map(p => <option key={p}>{p}</option>)}
                   </select>
                 </td>
                 <td><EF value={(r as { developer?: string }).developer ?? ''} onSave={v => upd(r.ref,'developer',v)} /></td>
                 <td>
-                  <select value={r.priority} onChange={e => upd(r.ref,'priority',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:11, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
+                  <select value={r.priority} onChange={e => upd(r.ref,'priority',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
                     {['must_have','should_have','could_have','wont_have'].map(p => <option key={p} value={p}>{p.replace('_',' ')}</option>)}
                   </select>
                 </td>
                 <td>
-                  <select value={r.status} onChange={e => upd(r.ref,'status',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:11, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
+                  <select value={r.status} onChange={e => upd(r.ref,'status',e.target.value)} style={{ fontFamily:'var(--font-body)', fontSize:13, background:'transparent', border:'none', color:'var(--fg2)', cursor:'pointer', padding:0 }}>
                     {['draft','approved','implemented','deprecated'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </td>
                 <td>
-                  <select value={r.linear_id} onChange={e => upd(r.ref,'linear_id',e.target.value)} style={{ fontFamily:'var(--font-mono)', fontSize:10, background:'transparent', border:'none', color: r.linear_id ? 'var(--navy)' : 'var(--fg3)', cursor:'pointer', padding:0 }}>
+                  <select value={r.linear_id} onChange={e => upd(r.ref,'linear_id',e.target.value)} style={{ fontFamily:'var(--font-mono)', fontSize:12, background:'transparent', border:'none', color: r.linear_id ? 'var(--navy)' : 'var(--fg3)', cursor:'pointer', padding:0 }}>
                     <option value="">—</option>
                     {linearIssues.map(i => <option key={i.id} value={i.identifier}>{i.identifier}</option>)}
                     {r.linear_id && !linearIssues.find(i => i.identifier === r.linear_id) && <option value={r.linear_id}>{r.linear_id}</option>}
                   </select>
                 </td>
-                <td style={{ color:'var(--fg3)', fontSize:12 }}>{expanded===r.ref ? '▲' : '▼'}</td>
+                <td style={{ color:'var(--fg3)', fontSize:13 }}>{expanded===r.ref ? '▲' : '▼'}</td>
               </tr>
               {expanded===r.ref && (
                 <tr key={`${r.ref}-linked`}>
@@ -2418,6 +2419,7 @@ function RequirementsView() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

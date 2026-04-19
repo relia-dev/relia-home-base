@@ -693,13 +693,15 @@ button { font-family: var(--font-body); cursor: pointer; }
 .p-wont    { background: var(--slate); color: var(--fg3); }            .p-wont .dot    { background: var(--fg3); }
 
 /* ── Data table ──────────────────────────────────────────────────────────── */
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-card-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .data-table th {
-  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--fg3); padding: 10px 20px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--fg3); padding: 11px 20px;
   border-bottom: 1px solid var(--border); text-align: left; font-weight: 500;
+  white-space: nowrap;
 }
-.data-table td { padding: 10px 20px; border-bottom: 1px solid var(--border); color: var(--fg1); vertical-align: middle; }
+.data-table td { padding: 12px 20px; border-bottom: 1px solid var(--border); color: var(--fg1); vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: 0; }
 .data-table tr:hover td { background: var(--slate-soft); }
 
@@ -814,8 +816,8 @@ button { font-family: var(--font-body); cursor: pointer; }
 /* ── Filter pills ────────────────────────────────────────────────────────── */
 .filter-strip { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-chip {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
-  text-transform: uppercase; padding: 4px 10px; border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 5px 12px; border-radius: var(--radius-pill);
   border: 1px solid var(--border); background: var(--bg-card); color: var(--fg3);
   cursor: pointer; transition: all 0.1s;
 }
