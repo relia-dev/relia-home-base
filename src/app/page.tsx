@@ -2558,13 +2558,13 @@ function UATTestRow({ t, upd, linearIssues }: {
         <tr>
           <td colSpan={8} style={{ padding:0, background:'var(--slate-soft)', borderBottom:'1px solid var(--border)' }}>
             <div style={{ padding:'16px 20px' }}>
-              {/* Notes */}
-              {t.notes && (
-                <div style={{ marginBottom:16, padding:'10px 14px', background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start' }}>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', paddingTop:2, flexShrink:0 }}>Notes</span>
-                  <span style={{ fontSize:13, color:'var(--fg1)', lineHeight:1.5 }}>{t.notes}</span>
+              {/* Notes — editable inline */}
+              <div style={{ marginBottom:16, padding:'10px 14px', background:'var(--bg-card)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start' }}>
+                <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg3)', paddingTop:4, flexShrink:0 }}>Notes</span>
+                <div style={{ flex:1, fontSize:13, color:'var(--fg1)', lineHeight:1.5 }}>
+                  <EF value={t.notes} onSave={v => upd(t.id,'notes',v)} placeholder="Add notes…" />
                 </div>
-              )}
+              </div>
               {/* Upload area */}
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--fg3)', marginBottom:8 }}>Upload image</div>
